@@ -53,7 +53,30 @@ deliberately, so the two platform suites cannot drift.
 
 ## What is next, in order
 
-### 1. M3 — `@DebugInput` on an enum class (in flight)
+### 0. M3 landed after this document was first written — start at step 3
+
+`43942e0` implements enum-class inputs; 89 compiler tests, and the `:domain` and `:shared`
+suites still pass on both platforms. **The KDoc question in step 2 is answered: yes.** KDoc
+is reachable from FIR identically under LightTree and PSI — verified byte-identical with
+`-Xuse-fir-lt` both ways and pinned by a regression test — so there is no IDE-versus-build
+asymmetry. Docs precedence is explicit `@DebugInput(docs = …)` on the entry, then the entry's
+KDoc, then empty. `@DebugInput` already targets enum entries, so the runtime was unchanged.
+
+Measured against the real `MagicNumbers.kt`: 106 descriptors, 2.0 s compile, 63 constants
+picking up KDoc, ~31 KB of debug-only class data dominated by the KDoc strings, nothing
+per-read.
+
+Two things that section 1 below asked for and did **not** happen, deliberately:
+`@DebugInput` on an entry supplies only `docs` — it does not by itself make an entry an input
+(the class-level annotation does). And the unsupported-`val` diagnostic names the enum and
+property rather than a constant, since the type is identical across constants and naming one
+would be arbitrary.
+
+One asymmetry worth knowing: under forced PSI parsing the generated file gets its FIR
+declaration and IR body but the JVM backend never writes its class file. LightTree is the CLI
+and Gradle default so no shipped build is affected, but do not force PSI.
+
+### 1. M3 — `@DebugInput` on an enum class (done, see above)
 
 The brief given to the agent, in case it needs restating:
 
