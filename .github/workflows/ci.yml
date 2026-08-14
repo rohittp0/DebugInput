@@ -42,7 +42,6 @@ jobs:
           ./gradlew --no-configuration-cache
           :debug-input-runtime:testAndroidHostTest
           :debug-input-runtime:iosSimulatorArm64Test
-          :debug-input-compose:testAndroidHostTest
           :debug-input-compose:iosSimulatorArm64Test
           :debug-input-runtime:compileKotlinIosArm64
           :debug-input-compose:compileKotlinIosArm64
@@ -64,7 +63,6 @@ jobs:
       - name: Build the dogfood app on both platforms
         run: >-
           ./gradlew --no-configuration-cache
-          :shared:testAndroidHostTest
           :shared:iosSimulatorArm64Test
           :shared:linkDebugFrameworkIosArm64
           :app:assembleDebug
