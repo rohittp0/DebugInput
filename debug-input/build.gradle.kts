@@ -1,6 +1,10 @@
 plugins {
     `kotlin-dsl`
     `java-gradle-plugin`
+    // With java-gradle-plugin applied, this also publishes the plugin marker
+    // com.rohittp.debug-input:com.rohittp.debug-input.gradle.plugin, which is what a
+    // consumer's `plugins { id(...) }` block actually resolves.
+    `maven-publish`
 }
 
 java {

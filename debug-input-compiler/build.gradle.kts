@@ -1,5 +1,14 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    `maven-publish`
+}
+
+// The Gradle plugin adds this artifact to kotlinCompilerPluginClasspath by coordinate, so
+// it has to be resolvable even though nobody writes it by hand.
+publishing {
+    publications.create<MavenPublication>("maven") {
+        from(components["java"])
+    }
 }
 
 java {

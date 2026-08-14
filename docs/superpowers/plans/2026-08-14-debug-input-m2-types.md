@@ -6,6 +6,14 @@ supported types, each asserted to resolve its default, take an override, survive
 and clear — through real SharedPreferences on Android and real `NSUserDefaults` on iOS.
 `:app` packages debug and release APKs; `:shared` links debug and release iOS frameworks.
 
+The shipped consumer path has also been verified once, by hand, against `mavenLocal`: a
+throwaway KMP project writing nothing but
+`plugins { id("com.rohittp.debug-input") version "0.1.0-SNAPSHOT" }` compiled, resolved the
+plugin marker, passed the version guard, got `debug-input-runtime` on its source set without
+declaring it, and emitted a descriptor manifest naming both an `Int` and a `List<String>`
+input. That is the path ADR-0007 gives up by hand-wiring `:app`. **Automating it as
+`consumer-smoke` is still M6** — until then, nothing re-checks it.
+
 **Goal:** Every primitive, `String`, enums, and the common composites — `List`, `Set`,
 `Array<T>`, the eight primitive arrays, `Pair` and `Triple` — are debug inputs that
 resolve, persist and edit on both platforms.
