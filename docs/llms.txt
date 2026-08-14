@@ -1,0 +1,29 @@
+# DebugInput
+
+> DebugInput is a Kotlin compiler and Gradle plugin that turns annotated Kotlin values and enum-class constructor vals into persistent, type-safe controls in Android and iOS debug builds.
+
+Canonical documentation: https://rohittp.com/DebugInput/
+Source: https://github.com/rohittp0/DebugInput
+Public Maven repository: https://maven.rohittp.com
+Plugin id: com.rohittp.debug-input
+Compose coordinate: com.rohittp:debug-input-compose
+Required Kotlin version: 2.3.21
+
+## Installation
+
+Add https://maven.rohittp.com to both pluginManagement.repositories and dependencyResolutionManagement.repositories. Apply com.rohittp.debug-input to modules declaring inputs and to the module that hosts DebugInputsPage(). Add com.rohittp:debug-input-compose:<version> to that page-hosting module.
+
+## Core API
+
+- @DebugInput(docs = "", section = "") annotates a property or enum class.
+- DebugInputsPage() renders generated sections, editors, reset actions, KDoc, and Copy JSON.
+- Explicit docs wins over declaration KDoc. The default section is the file, class, object, or enum name.
+- An annotated enum class creates one input for every supported constructor val on every constant.
+
+## Supported types
+
+Byte, Short, Int, Long, Float, Double, Boolean, Char, String, enums, List, Set, Array, all eight primitive arrays, Pair, and Triple. Maps, nested containers, and enums inside containers are unsupported.
+
+## Production behavior
+
+Overrides are active only in debug builds. Production reads return source defaults. Tester JSON is a handoff for developers to review and apply to Kotlin declarations; it is not production runtime configuration.

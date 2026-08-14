@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DebugInput — Runtime tuning for Kotlin debug builds</title>
+  <meta name="description" content="Turn Kotlin vals and enum constants into persistent, type-safe debug controls on Android and iOS, with KDoc-powered pages and JSON export." />
+  <meta name="theme-color" content="#111827" />
+  <link rel="canonical" href="https://rohittp.com/DebugInput/" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="style.css" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="DebugInput" />
+  <meta property="og:title" content="DebugInput — Runtime tuning for Kotlin debug builds" />
+  <meta property="og:description" content="Annotate a Kotlin value. Tune it on-device. Copy the changed defaults as JSON." />
+  <meta property="og:url" content="https://rohittp.com/DebugInput/" />
+  <meta name="twitter:card" content="summary" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareSourceCode",
+    "name": "DebugInput",
+    "description": "A Kotlin compiler and Gradle plugin for persistent runtime tuning in Android and iOS debug builds.",
+    "codeRepository": "https://github.com/rohittp0/DebugInput",
+    "programmingLanguage": "Kotlin",
+    "runtimePlatform": "Android, iOS",
+    "url": "https://rohittp.com/DebugInput/",
+    "author": {
+      "@type": "Person",
+      "name": "Rohit T P",
+      "url": "https://rohittp.com"
+    }
+  }
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to documentation</a>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#top" aria-label="DebugInput home">
+        <span class="brand-mark" aria-hidden="true">D</span>
+        <span>DebugInput</span>
+      </a>
+      <nav class="top-nav" aria-label="Primary navigation">
+        <a href="#install">Install</a>
+        <a href="#values">Values</a>
+        <a href="#enums">Enums</a>
+        <a href="#ui">UI</a>
+        <a href="#reference">Reference</a>
+      </nav>
+      <a class="github-link" href="https://github.com/rohittp0/DebugInput" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a>
+    </div>
+  </header>
+
+  <main id="content">
+    <section class="hero" id="top">
+      <div class="hero-copy">
+        <p class="eyebrow">Kotlin compiler plugin · Android + iOS</p>
+        <h1>Change the number.<br /><span>See the result.</span></h1>
+        <p class="hero-lead">
+          Mark ordinary Kotlin values or an enum class with <code>@DebugInput</code>.
+          DebugInput generates a type-safe tuning page, persists tester changes, and exports
+          every changed default as JSON.
+        </p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#install">Get started</a>
+          <a class="button button-secondary" href="#how-it-works">How it works</a>
+        </div>
+        <div class="hero-meta" aria-label="Project facts">
+          <span><strong>v<span data-debug-input-version>latest</span></strong> current release</span>
+          <span><strong>Kotlin 2.3.21</strong> exact compiler line</span>
+          <span><strong>23</strong> supported type shapes</span>
+        </div>
+      </div>
+
+      <div class="hero-demo" aria-label="DebugInput example">
+        <div class="window-bar">
+          <span class="window-dot"></span><span class="window-dot"></span><span class="window-dot"></span>
+          <span class="window-title">Animation.kt</span>
+        </div>
+        <pre><code><span class="code-comment">/** Playback multiplier used by previews. */</span>
+<span class="code-annotation">@DebugInput</span>
+<span class="code-keyword">val</span> playbackSpeed = <span class="code-number">1.0</span></code></pre>
+        <div class="demo-divider"></div>
+        <div class="demo-page">
+          <div>
+            <span class="demo-kicker">ANIMATION</span>
+            <strong>playbackSpeed</strong>
+            <small>kotlin.Double</small>
+          </div>
+          <div class="demo-value">1.35</div>
+          <span class="changed-pill">Changed</span>
+        </div>
+        <div class="demo-export"><span>{ }</span> Copy JSON (1)</div>
+      </div>
+    </section>
+
+    <section class="trust-strip" aria-label="Core guarantees">
+      <div><strong>No manual registry</strong><span>Descriptors are generated from source.</span></div>
+      <div><strong>KDoc is the copy</strong><span>Documentation stays beside the value.</span></div>
+      <div><strong>Release-safe</strong><span>Production reads always return defaults.</span></div>
+      <div><strong>Persistent</strong><span>Overrides survive app relaunches.</span></div>
+    </section>
+
+    <div class="docs-shell">
+      <aside class="side-nav" aria-label="On this page">
+        <p>On this page</p>
+        <a href="#install">Install</a>
+        <a href="#quick-start">Quick start</a>
+        <a href="#values">Ordinary values</a>
+        <a href="#enums">Enum inputs</a>
+        <a href="#sections">Sections and KDoc</a>
+        <a href="#ui">Debug UI</a>
+        <a href="#export">JSON export</a>
+        <a href="#types">Supported types</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="#release-behavior">Release behavior</a>
+        <a href="#limitations">Limitations</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a href="#reference">API reference</a>
+      </aside>
+
+      <article class="docs-content">
+        <section id="install" class="doc-section">
+          <p class="section-label">01 · Installation</p>
+          <h2>Two repositories, one plugin</h2>
+          <p class="section-intro">
+            Gradle resolves plugins and libraries from separate repository lists. Add the public
+            DebugInput Maven repository to both lists in the root <code>settings.gradle.kts</code>.
+          </p>
+
+          <div class="callout callout-important">
+            <strong>Compiler compatibility</strong>
+            <p>DebugInput <span data-debug-input-version>latest</span> requires Kotlin <code>2.3.21</code>. The Gradle plugin fails early with a readable error when the consumer uses a different Kotlin version.</p>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header"><span>settings.gradle.kts</span><button class="copy-button" type="button">Copy</button></div>
+            <pre><code><span class="code-fn">pluginManagement</span> {
+    repositories {
+        google()
+        maven(<span class="code-string">"https://maven.rohittp.com"</span>)
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+<span class="code-fn">dependencyResolutionManagement</span> {
+    repositories {
+        google()
+        maven(<span class="code-string">"https://maven.rohittp.com"</span>)
+        mavenCentral()
+    }
+}</code></pre>
+          </div>
+
+          <p>Apply the plugin to every Kotlin module that declares debug inputs, and to the module that hosts <code>DebugInputsPage()</code> so its call site can aggregate those inputs:</p>
+
+          <div class="code-block">
+            <div class="code-header"><span>shared/build.gradle.kts</span><button class="copy-button" type="button">Copy</button></div>
+            <pre><code><span class="code-fn">plugins</span> {
+    id(<span class="code-string">"com.rohittp.debug-input"</span>) version <span class="code-string">"<span data-debug-input-version>latest</span>"</span>
+}</code></pre>
+          </div>
+
+          <p>Add the optional Compose UI artifact in that page-hosting module:</p>
+
+          <div class="code-block">
+            <div class="code-header"><span>app/build.gradle.kts</span><button class="copy-button" type="button">Copy</button></div>
+            <pre><code><span class="code-fn">dependencies</span> {
+    implementation(<span class="code-string">"com.rohittp:debug-input-compose:<span data-debug-input-version>latest</span>"</span>)
+}</code></pre>
+          </div>
+
+          <div class="callout callout-tip">
+            <strong>No runtime dependency declaration</strong>
+            <p>The Gradle plugin adds <code>debug-input-runtime</code> to instrumented source sets automatically. The Compose artifact exposes it transitively to the UI host.</p>
+          </div>
+        </section>
+
+        <section id="quick-start" class="doc-section">
+          <p class="section-label">02 · Quick start</p>
+          <h2>Annotate, host, tune</h2>
+          <div class="step-grid">
+            <div class="step-card"><span>1</span><strong>Annotate a val</strong><p>The declaration keeps its normal Kotlin type and default.</p></div>
+            <div class="step-card"><span>2</span><strong>Host the page</strong><p>Add one composable to your existing debug settings screen.</p></div>
+            <div class="step-card"><span>3</span><strong>Edit on-device</strong><p>Reads resolve the persisted override until it is reset.</p></div>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header"><span>Animation.kt</span><button class="copy-button" type="button">Copy</button></div>
+            <pre><code><span class="code-keyword">import</span> com.rohittp.debuginput.DebugInput
+
+<span class="code-comment">/** Multiplier applied to preview playback. */</span>
+<span class="code-annotation">@DebugInput</span>
+<span class="code-keyword">val</span> playbackSpeed: Double = <span class="code-number">1.0</span></code></pre>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header"><span>DebugSettings.kt</span><button class="copy-button" type="button">Copy</button></div>
+            <pre><code><span class="code-keyword">import</span> com.rohittp.debuginput.compose.DebugInputsPage
+
+<span class="code-annotation">@Composable</span>
+<span class="code-keyword">fun</span> DebugSettings() {
+    DebugInputsPage()
+}</code></pre>
+          </div>
+
+          <p>
+            The compiler rewrites the call site so <code>DebugInputsPage()</code> receives every
+            generated descriptor reachable from that module. There is no list to maintain.
+          </p>
+        </section>
+
+        <section id="values" class="doc-section">
+          <p class="section-label">03 · Ordinary values</p>
+          <h2>Keep tuning values where they belong</h2>
+          <p class="section-intro">
+            Annotate top-level or object properties. The property's KDoc becomes its help text,
+            and its declaring file, class, or object becomes the default section.
+          </p>
+
+          <div class="split-example">
+            <div class="code-block">
+              <div class="code-header"><span>Physics.kt</span><button class="copy-button" type="button">Copy</button></div>
+              <pre><code><span class="code-comment">/**
+ * Keeps the camera inside the route bounds
+ * during fast preview scrubbing.
+ */</span>
+<span class="code-annotation">@DebugInput</span>
+<span class="code-keyword">val</span> cameraPadding = <span class="code-number">48.0</span>
+
+<span class="code-comment">/** Draw route labels in preview. */</span>
+<span class="code-annotation">@DebugInput</span>
+<span class="code-keyword">val</span> showLabels = <span class="code-keyword">true</span></code></pre>
+            </div>
+            <div class="result-card">
+              <span class="result-label">Generated section</span>
+              <h3>Physics</h3>
+              <div class="result-row"><span>cameraPadding</span><code>48.0</code></div>
+              <div class="result-row"><span>showLabels</span><code>true</code></div>
+            </div>
+          </div>
+
+          <h3>Explicit metadata is optional</h3>
+          <p>
+            Use <code>docs</code> only when the UI needs different prose from source readers. Use
+            <code>section</code> to merge related values from different files into one page.
+          </p>
+          <div class="code-block">
+            <div class="code-header"><span>Explicit overrides</span><button class="copy-button" type="button">Copy</button></div>
+            <pre><code><span class="code-annotation">@DebugInput</span>(
+    section = <span class="code-string">"Animation tuning"</span>,
+    docs = <span class="code-string">"Tester-facing explanation shown in the app."</span>,
+)
+<span class="code-keyword">val</span> trailOpacity = <span class="code-number">0.72</span></code></pre>
+          </div>
+        </section>
+
+        <section id="enums" class="doc-section">
+          <p class="section-label">04 · Enum inputs</p>
+          <h2>Turn a constants table into one tuning page</h2>
+          <p class="section-intro">
+            Annotating an enum class instruments every supported constructor <code>val</code> on
+            every constant. This works well for large, documented tuning tables.
+          </p>
+
+          <div class="code-block">
+            <div class="code-header"><span>MagicNumbers.kt</span><button class="copy-button" type="button">Copy</button></div>
+            <pre><code><span class="code-comment">/** Values controlling route animation and rendering. */</span>
+<span class="code-annotation">@DebugInput</span>(section = <span class="code-string">"Animation constants"</span>)
+<span class="code-keyword">enum class</span> MagicNumbers(<span class="code-keyword">vararg val</span> values: Double) {
+    <span class="code-comment">/** Widths for low, normal, and high emphasis. */</span>
+    ROUTE_LINE_WIDTHS(<span class="code-number">2.0</span>, <span class="code-number">4.0</span>, <span class="code-number">6.0</span>),
+
+    <span class="code-comment">/** Scale ladder used by the flag marker. */</span>
+    FLAG_SCALES(<span class="code-number">0.6</span>, <span class="code-number">0.8</span>, <span class="code-number">1.0</span>),
+}</code></pre>
+          </div>
+
+          <div class="rule-grid">
+            <div><strong>One constructor val</strong><p>Rows are named <code>ROUTE_LINE_WIDTHS</code>; the redundant property suffix is omitted.</p></div>
+            <div><strong>Multiple constructor vals</strong><p>Rows are named <code>FREE.limit</code>, <code>FREE.label</code>, and so on.</p></div>
+            <div><strong>Stable hot path</strong><p>Enum getters use an ordinal-indexed id table. No string concatenation happens per read.</p></div>
+            <div><strong>Entry bodies work</strong><p>Constants with anonymous bodies still inherit the ordinal used by the generated table.</p></div>
+          </div>
+
+          <h3>Override one entry's documentation</h3>
+          <div class="code-block">
+            <div class="code-header"><span>Enum entry metadata</span><button class="copy-button" type="button">Copy</button></div>
+            <pre><code><span class="code-annotation">@DebugInput</span>(docs = <span class="code-string">"Shorter tester-facing explanation."</span>)
+MINIMUM_DURATION_CEILING_SEC(<span class="code-number">8.0</span>)</code></pre>
+          </div>
+          <p>The class-level annotation creates the inputs. An annotation on one entry only overrides that entry's documentation.</p>
+        </section>
+
+        <section id="sections" class="doc-section">
+          <p class="section-label">05 · Sections and documentation</p>
+          <h2>Source structure becomes navigation</h2>
+          <p>
+            Every compiler-generated section is a root card leading to a dedicated subpage. The
+            default title is the declaring file, class, object, or enum name. An explicit
+            <code>section</code> title groups ordinary values with the same title inside a module.
+          </p>
+
+          <table>
+            <thead><tr><th>Declaration</th><th>Default section</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td>Top-level property</td><td>Source file name</td><td>Property KDoc</td></tr>
+              <tr><td>Class or object property</td><td>Class or object name</td><td>Property KDoc</td></tr>
+              <tr><td>Annotated enum class</td><td>Enum name</td><td>Enum class KDoc</td></tr>
+              <tr><td>Explicit <code>section</code></td><td>Provided title</td><td>Declaration KDoc</td></tr>
+            </tbody>
+          </table>
+
+          <h3>KDoc precedence</h3>
+          <ol class="precedence-list">
+            <li><span>1</span><div><strong>Explicit <code>docs</code></strong><p>Use when the in-app explanation intentionally differs from source documentation.</p></div></li>
+            <li><span>2</span><div><strong>Declaration KDoc</strong><p>The normal path for values, enum classes, and enum entries.</p></div></li>
+            <li><span>3</span><div><strong>Empty</strong><p>The row remains usable without an information action.</p></div></li>
+          </ol>
+
+          <div class="callout callout-note">
+            <strong>KDoc normalization</strong>
+            <p>Block tags such as <code>@param</code> and <code>@see</code> are dropped, qualified KDoc links are shortened to their final name, star margins are collapsed, and paragraph breaks are retained. The full body is kept.</p>
+          </div>
+        </section>
+
+        <section id="ui" class="doc-section">
+          <p class="section-label">06 · Debug UI</p>
+          <h2>A settings page that scales from one value to hundreds</h2>
+          <p class="section-intro">
+            <code>DebugInputsPage()</code> inherits the host app's Material theme and fills its
+            bounded parent. Sections become subpages, keeping the root readable.
+          </p>
+
+          <div class="feature-list">
+            <div><span>01</span><div><strong>Type-aware editors</strong><p>Validated number and text fields, Boolean controls, enum selection, and element editors for composites.</p></div></div>
+            <div><span>02</span><div><strong>Clear change state</strong><p>Changed badges, per-row reset, changed counts on sections, and one global reset.</p></div></div>
+            <div><span>03</span><div><strong>Documentation in context</strong><p>Property or enum-entry KDoc is available beside the value; enum KDoc introduces its section page.</p></div></div>
+            <div><span>04</span><div><strong>Module-aware aggregation</strong><p>Inputs from dependent modules are collected, de-duplicated by id, and sorted deterministically.</p></div></div>
+          </div>
+
+          <div class="callout callout-tip">
+            <strong>Host responsibility</strong>
+            <p>The composable does not install a <code>MaterialTheme</code> or its own navigation destination. Put it inside your existing debug-only settings flow and give it bounded height.</p>
+          </div>
+        </section>
+
+        <section id="export" class="doc-section">
+          <p class="section-label">07 · Tester handoff</p>
+          <h2>Copy changed defaults as JSON</h2>
+          <p>
+            The page exports only effective overrides that differ from the declaration's current
+            default. The payload is stable-id sorted, versioned, and copied directly to the
+            clipboard so testers can send it to developers.
+          </p>
+
+          <div class="code-block">
+            <div class="code-header"><span>Clipboard payload</span><button class="copy-button" type="button">Copy</button></div>
+            <pre><code>{
+  <span class="code-string">"version"</span>: <span class="code-number">1</span>,
+  <span class="code-string">"changes"</span>: [
+    {
+      <span class="code-string">"id"</span>: <span class="code-string">"com.app.Animation.playbackSpeed"</span>,
+      <span class="code-string">"module"</span>: <span class="code-string">":shared"</span>,
+      <span class="code-string">"section"</span>: <span class="code-string">"Animation"</span>,
+      <span class="code-string">"name"</span>: <span class="code-string">"playbackSpeed"</span>,
+      <span class="code-string">"type"</span>: <span class="code-string">"kotlin.Double"</span>,
+      <span class="code-string">"default"</span>: <span class="code-number">1.0</span>,
+      <span class="code-string">"value"</span>: <span class="code-number">1.35</span>
+    }
+  ]
+}</code></pre>
+          </div>
+
+          <p>Dormant overrides from renamed, removed, or type-changed inputs are excluded. Arrays and composites are exported as JSON arrays; enum values and characters are strings.</p>
+        </section>
+
+        <section id="types" class="doc-section">
+          <p class="section-label">08 · Supported values</p>
+          <h2>Built-in editors for common Kotlin shapes</h2>
+          <div class="type-groups">
+            <div class="type-group"><h3>Scalars</h3><div class="chips"><code>Byte</code><code>Short</code><code>Int</code><code>Long</code><code>Float</code><code>Double</code><code>Boolean</code><code>Char</code><code>String</code></div></div>
+            <div class="type-group"><h3>Choice</h3><div class="chips"><code>Enum</code></div></div>
+            <div class="type-group"><h3>Collections</h3><div class="chips"><code>List&lt;T&gt;</code><code>Set&lt;T&gt;</code><code>Array&lt;T&gt;</code></div></div>
+            <div class="type-group"><h3>Primitive arrays</h3><div class="chips"><code>ByteArray</code><code>ShortArray</code><code>IntArray</code><code>LongArray</code><code>FloatArray</code><code>DoubleArray</code><code>BooleanArray</code><code>CharArray</code></div></div>
+            <div class="type-group"><h3>Tuples</h3><div class="chips"><code>Pair&lt;A, B&gt;</code><code>Triple&lt;A, B, C&gt;</code></div></div>
+          </div>
+          <p class="fine-print">Collection elements and tuple slots must use supported scalar shapes. Nested containers, maps, and enums inside containers are rejected by design.</p>
+        </section>
+
+        <section id="how-it-works" class="doc-section">
+          <p class="section-label">09 · Runtime model</p>
+          <h2>Generated at compile time, cheap at read time</h2>
+          <div class="flow" aria-label="DebugInput data flow">
+            <div><span>Source</span><strong><code>@DebugInput val</code></strong></div>
+            <i aria-hidden="true">→</i>
+            <div><span>Compiler</span><strong>Getter + descriptor</strong></div>
+            <i aria-hidden="true">→</i>
+            <div><span>Runtime</span><strong>Override registry</strong></div>
+            <i aria-hidden="true">→</i>
+            <div><span>UI</span><strong>Edit + export</strong></div>
+          </div>
+
+          <div class="architecture-grid">
+            <div><h3>Read path</h3><p>A generated getter calls a type-specific resolver. Scalar reads use a debug-build check, volatile map read, and lookup. Enum-class inputs load their stable id from an ordinal table.</p></div>
+            <div><h3>Persistence</h3><p>Android uses dependency-free automatic initialization plus SharedPreferences. iOS uses an isolated NSUserDefaults suite. Hydration is lazy on first read.</p></div>
+            <div><h3>Cross-module pages</h3><p>Each instrumented module publishes a descriptor manifest. The consuming page call aggregates direct dependency descriptors hierarchically.</p></div>
+            <div><h3>Stable identity</h3><p>Property ids derive from package and declaration identity. Section display titles are separate from page identity, so equal file names do not collide.</p></div>
+          </div>
+        </section>
+
+        <section id="release-behavior" class="doc-section">
+          <p class="section-label">10 · Production behavior</p>
+          <h2>Defaults remain authoritative in release builds</h2>
+          <p>
+            On Android application release compilations, the transform is disabled. For Kotlin
+            Multiplatform Android libraries, AGP exposes one Android variant, so generated calls
+            can remain in the artifact; the runtime debug check still guarantees defaults. On
+            iOS, debug/release identity is resolved at final link time.
+          </p>
+          <div class="callout callout-important">
+            <strong>Do not use tester JSON as runtime configuration</strong>
+            <p>The export is a developer handoff. Review it, update the Kotlin declarations, and let those new source defaults ship through the normal production process.</p>
+          </div>
+        </section>
+
+        <section id="limitations" class="doc-section">
+          <p class="section-label">11 · Current boundaries</p>
+          <h2>Know what is deliberately outside the line</h2>
+          <ul class="check-list limitation-list">
+            <li><span>×</span><div><strong>Exact Kotlin pin</strong><p>The compiler plugin currently supports Kotlin <code>2.3.21</code>, not a range.</p></div></li>
+            <li><span>×</span><div><strong>Ordinary instance properties</strong><p>An annotated property on an ordinary class instance has no statically reachable descriptor default. Prefer top-level, object, or enum-class inputs.</p></div></li>
+            <li><span>×</span><div><strong>No custom renderers yet</strong><p>Unsupported type shapes render no editor. Maps and nested containers are rejected.</p></div></li>
+            <li><span>×</span><div><strong>No iOS x64 Compose page</strong><p>The runtime supports iOS x64, but the Compose dependency line no longer publishes that simulator target.</p></div></li>
+            <li><span>×</span><div><strong>Debug tuning is not synchronized</strong><p>Overrides are local to one app installation. Use Copy JSON for collaboration.</p></div></li>
+          </ul>
+        </section>
+
+        <section id="troubleshooting" class="doc-section">
+          <p class="section-label">12 · Troubleshooting</p>
+          <h2>Common integration failures</h2>
+          <div class="faq">
+            <details><summary>Plugin <code>com.rohittp.debug-input</code> was not found</summary><p>Add <code>https://maven.rohittp.com</code> inside <code>pluginManagement.repositories</code> in the root settings file. A dependency repository alone cannot resolve a Gradle plugin marker.</p></details>
+            <details><summary><code>debug-input-runtime</code> or Compose cannot be resolved</summary><p>Add the same repository inside <code>dependencyResolutionManagement.repositories</code>. Plugin and library resolution are separate.</p></details>
+            <details><summary>The build reports a Kotlin version mismatch</summary><p>Use Kotlin <code>2.3.21</code> for DebugInput <span data-debug-input-version>latest</span>. This guard prevents binary-incompatible compiler internals from failing later with obscure FIR or IR errors.</p></details>
+            <details><summary>The page is empty</summary><p>Confirm the plugin is applied to the module that declares inputs and that <code>DebugInputsPage()</code> is compiled in an instrumented module. An empty page is expected in release builds.</p></details>
+            <details><summary>A value resets after editing</summary><p>Invalid text is not stored. For composites, every element must match the declared shape. A stored override from an older type is dormant and the current declaration resolves its default.</p></details>
+            <details><summary>Two sections have the same title</summary><p>Default sections keep separate internal page identities even when two files share a name. If they are conceptually one page, assign the same explicit <code>section</code> title.</p></details>
+          </div>
+        </section>
+
+        <section id="reference" class="doc-section">
+          <p class="section-label">13 · Public API</p>
+          <h2>Small surface, generated behavior</h2>
+          <div class="api-list">
+            <div><code>@DebugInput(docs = "", section = "")</code><p>Marks a property or enum class. Both parameters are optional and fall back to KDoc and source structure.</p></div>
+            <div><code>DebugInputsPage(descriptors = emptyList(), modifier = Modifier)</code><p>Renders the generated debug input catalogue. Normal source calls omit <code>descriptors</code>; the compiler supplies them.</p></div>
+          </div>
+          <p>
+            Registry and descriptor internals are intentionally marked internal opt-in API. Build
+            integrations should depend on the annotation, Gradle plugin, and page rather than on
+            generated function names or codec details.
+          </p>
+          <div class="footer-cta">
+            <div><p class="section-label">Ready to tune?</p><h2>Keep defaults in source.<br />Move faster in debug.</h2></div>
+            <a class="button button-primary" href="#install">Install DebugInput</a>
+          </div>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div><strong>DebugInput</strong><span>Runtime tuning for Kotlin debug builds.</span></div>
+    <div class="footer-links">
+      <a href="https://github.com/rohittp0/DebugInput">Source</a>
+      <a href="https://maven.rohittp.com">Maven repository</a>
+      <a href="llms.txt">llms.txt</a>
+    </div>
+    <p>Documentation tracks the latest public release: <span data-debug-input-version>latest</span>.</p>
+  </footer>
+
+  <script src="versions.js"></script>
+  <script src="site.js"></script>
+</body>
+</html>
