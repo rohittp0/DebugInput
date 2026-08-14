@@ -3,8 +3,18 @@
 /local.properties
 /.idea
 .DS_Store
-/build
 /captures
 .externalNativeBuild
 .cxx
 local.properties
+
+# Every module's build directory, not just the root's.
+build/
+
+# Kotlin's per-project session directory, created by the KMP plugin.
+.kotlin/
+
+# Xcode, for the iOS demo app when it lands.
+xcuserdata/
+*.xcworkspace/xcshareddata/
+DerivedData/

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!--
+          Captures an application Context at process start so the override store needs
+          no initialisation from the consumer. Does no work beyond that.
+        -->
+        <provider
+            android:name="com.rohittp.debuginput.DebugInputInitializer"
+            android:authorities="${applicationId}.debuginput-initializer"
+            android:enabled="true"
+            android:exported="false" />
+    </application>
+
+</manifest>

@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  compiler-and-gradle-plugin:
+    name: Compiler plugin and Gradle plugin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Test the JVM modules
+        run: >-
+          ./gradlew --no-configuration-cache
+          :debug-input-compiler:test
+          :debug-input:test
+
+  runtime-and-page:
+    name: Runtime, page and Apple targets
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Test and compile every target
+        run: >-
+          ./gradlew --no-configuration-cache
+          :debug-input-runtime:testAndroidHostTest
+          :debug-input-runtime:iosSimulatorArm64Test
+          :debug-input-compose:testAndroidHostTest
+          :debug-input-compose:iosSimulatorArm64Test
+          :debug-input-runtime:compileKotlinIosArm64
+          :debug-input-compose:compileKotlinIosArm64
+
+  dogfood:
+    name: Dogfood app and release inertness
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - uses: gradle/actions/setup-gradle@v6
+      # The dogfood modules are the only place the transform, the page, the stores and
+      # cross-module descriptor aggregation all run together, and the only place the
+      # iOS link path is exercised. See docs/adr/0007-app-is-wired-by-hand.md.
+      - name: Build the dogfood app on both platforms
+        run: >-
+          ./gradlew --no-configuration-cache
+          :shared:testAndroidHostTest
+          :shared:iosSimulatorArm64Test
+          :shared:linkDebugFrameworkIosArm64
+          :app:assembleDebug
+      # Inertness on Android is a runtime property for KMP modules, because the AGP
+      # KMP library plugin has a single Android variant — see the amendment in
+      # docs/adr/0002-android-release-skips-the-transform.md. It is therefore asserted
+      # behaviourally in :debug-input-runtime's tests, not by scanning bytecode. All
+      # this step proves is that a release build still compiles and links.
+      - name: Build release variants
+        run: >-
+          ./gradlew --no-configuration-cache
+          :app:assembleRelease
+          :shared:linkReleaseFrameworkIosArm64

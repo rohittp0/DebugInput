@@ -1,0 +1,17 @@
+// FILE: Screen.kt
+package com.app
+
+@DebugInput
+val speed: Int
+  field = 10
+  get(): Int {
+    return DebugInputRegistry.resolveInt(id = "com.app.speed", default = #speed)
+  }
+
+fun show() {
+  DebugInputsPage(descriptors = descriptors_app())
+}
+
+fun $debugInputDescriptors$Screen_kt(): List<DebugInputDescriptor> {
+  return mutableListOf<DebugInputDescriptor>(elements = [DebugInputDescriptor(id = "com.app.speed", displayName = "speed", module = ":app", section = "Screen", typeKey = "kotlin.Int", docs = "", default = #speed, spec = "int")])
+}

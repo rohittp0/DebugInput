@@ -1,0 +1,27 @@
+// FILE: Networking.kt
+package com.app.net
+
+@DebugInput
+val hosts: List<String>
+  field = listOf<String>(element = "api.example.com")
+  get(): List<String> {
+    return DebugInputRegistry.resolveComposite(id = "com.app.net.hosts", default = #hosts, spec = "lst<str>") /*as List<String> */
+  }
+
+@DebugInput
+val retryDelays: IntArray
+  field = intArrayOf(elements = [100])
+  get(): IntArray {
+    return DebugInputRegistry.resolveComposite(id = "com.app.net.retryDelays", default = #retryDelays, spec = "iarr") /*as IntArray */
+  }
+
+@DebugInput
+val tier: Tier
+  field = Tier.FREE
+  get(): Tier {
+    return DebugInputRegistry.resolveEnum<Tier>(id = "com.app.net.tier", default = #tier, entries = values())
+  }
+
+fun $debugInputDescriptors$Networking_kt(): List<DebugInputDescriptor> {
+  return mutableListOf<DebugInputDescriptor>(elements = [DebugInputDescriptor(id = "com.app.net.hosts", displayName = "hosts", module = ":net", section = "Networking", typeKey = "kotlin.collections.List", docs = "", default = #hosts, spec = "lst<str>"), DebugInputDescriptor(id = "com.app.net.retryDelays", displayName = "retryDelays", module = ":net", section = "Networking", typeKey = "kotlin.IntArray", docs = "", default = #retryDelays, spec = "iarr"), DebugInputDescriptor(id = "com.app.net.tier", displayName = "tier", module = ":net", section = "Networking", typeKey = "com.app.net.Tier", docs = "", default = #tier, spec = "enm")])
+}

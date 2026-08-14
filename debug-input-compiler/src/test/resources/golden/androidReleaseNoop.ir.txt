@@ -1,0 +1,11 @@
+// FILE: Physics.kt
+package com.app.physics
+
+@DebugInput
+val speed: Int
+  field = 10
+  get
+
+fun readSpeed(): Int {
+  return <get-speed>()
+}

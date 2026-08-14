@@ -1,21 +1,23 @@
+// Dogfood Android app. Never published. Deliberately has no Kotlin Multiplatform and
+// no Compose plugin of its own: it hosts a View that :shared hands it, so all the
+// Compose work stays in the KMP module. AGP 9's built-in Kotlin support compiles the
+// single Activity.
 plugins {
     alias(libs.plugins.android.application)
 }
 
 android {
-    namespace = "com.rohittp.debug_input"
+    namespace = "com.rohittp.debuginput.sample"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "com.rohittp.debug_input"
-        minSdk = 30
+        applicationId = "com.rohittp.debuginput.sample"
+        minSdk = 24
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -25,17 +27,8 @@ android {
             }
         }
     }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
 }
 
 dependencies {
-    implementation(libs.androidx.appcompat)
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.material)
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(libs.androidx.junit)
+    implementation(project(":shared"))
 }

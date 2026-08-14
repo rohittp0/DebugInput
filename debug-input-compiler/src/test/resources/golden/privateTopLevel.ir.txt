@@ -1,0 +1,17 @@
+// FILE: Physics.kt
+package com.app.physics
+
+@DebugInput
+private val speed: Int
+  field = 10
+  private get(): Int {
+    return DebugInputRegistry.resolveInt(id = "com.app.physics.Physics.kt.speed", default = #speed)
+  }
+
+fun readSpeed(): Int {
+  return <get-speed>()
+}
+
+fun $debugInputDescriptors$Physics_kt(): List<DebugInputDescriptor> {
+  return mutableListOf<DebugInputDescriptor>(elements = [DebugInputDescriptor(id = "com.app.physics.Physics.kt.speed", displayName = "speed", module = "test-module", section = "Physics", typeKey = "kotlin.Int", docs = "", default = #speed, spec = "int")])
+}
