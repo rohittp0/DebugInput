@@ -1,0 +1,39 @@
+// FILE: MagicNumbers.kt
+package com.app.magic
+
+@DebugInput
+enum class MagicNumbers : Enum<MagicNumbers> {
+  private constructor(vararg values: Double) /* primary */ {
+    super/*Enum*/<MagicNumbers>()
+    /* <init>() */
+
+  }
+
+  val values: DoubleArray
+    field = values
+    get(): DoubleArray {
+      return DebugInputRegistry.resolveComposite(id = <get-$debugInputIds$MagicNumbers$values>().get(index = <this>.<get-ordinal>()), default = <this>.#values, spec = "darr") /*as DoubleArray */
+    }
+
+  INTRO_INFLEXION = MagicNumbers(values = [3.0])
+
+  ROUTE_LINE_WIDTHS = MagicNumbers(values = [2.0, 4.0, 6.0])
+
+  /* static */ fun values(): Array<MagicNumbers> /* Synthetic body for ENUM_VALUES */
+
+  /* static */ fun valueOf(value: String): MagicNumbers /* Synthetic body for ENUM_VALUEOF */
+
+  /* static */ val entries: EnumEntries<MagicNumbers>
+    get(): EnumEntries<MagicNumbers> /* Synthetic body for ENUM_ENTRIES */
+
+}
+
+val $debugInputIds$MagicNumbers$values: Array<String>
+  field = arrayOf<String>(elements = ["com.app.magic.MagicNumbers.INTRO_INFLEXION.values", "com.app.magic.MagicNumbers.ROUTE_LINE_WIDTHS.values"])
+  get(): Array<String> {
+    return #$debugInputIds$MagicNumbers$values
+  }
+
+fun $debugInputDescriptors$MagicNumbers_kt(): List<DebugInputDescriptor> {
+  return mutableListOf<DebugInputDescriptor>(elements = [DebugInputDescriptor(id = "com.app.magic.MagicNumbers.INTRO_INFLEXION.values", displayName = "INTRO_INFLEXION", module = ":magic", section = "MagicNumbers", typeKey = "kotlin.DoubleArray", docs = "Player speed in m/s.", default = MagicNumbers.INTRO_INFLEXION.#values, spec = "darr"), DebugInputDescriptor(id = "com.app.magic.MagicNumbers.ROUTE_LINE_WIDTHS.values", displayName = "ROUTE_LINE_WIDTHS", module = ":magic", section = "MagicNumbers", typeKey = "kotlin.DoubleArray", docs = "", default = MagicNumbers.ROUTE_LINE_WIDTHS.#values, spec = "darr")])
+}

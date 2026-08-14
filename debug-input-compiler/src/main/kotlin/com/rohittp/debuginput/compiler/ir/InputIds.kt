@@ -15,7 +15,19 @@ import org.jetbrains.kotlin.ir.declarations.IrProperty
  * `private val speed` and compile cleanly, so those are the only declarations Kotlin does
  * not keep unique by qualified name.
  */
-internal fun debugInputId(property: IrProperty): String {
+internal fun debugInputId(property: IrProperty): String = idSegments(property).joinToString(".")
+
+/**
+ * The id of one constant's copy of an enum-class input: the property's own id with the constant
+ * inserted before the property name — `com.app.MagicNumbers.INTRO_INFLEXION.values`.
+ */
+internal fun enumConstantInputId(property: IrProperty, entryName: String): String {
+    val segments = idSegments(property)
+    segments.add(segments.size - 1, entryName)
+    return segments.joinToString(".")
+}
+
+private fun idSegments(property: IrProperty): MutableList<String> {
     val segments = ArrayDeque<String>()
     segments.addFirst(property.name.asString())
 
@@ -25,7 +37,7 @@ internal fun debugInputId(property: IrProperty): String {
         owner = owner.parent
     }
 
-    val file = owner as? IrFile ?: return segments.joinToString(".")
+    val file = owner as? IrFile ?: return segments
 
     val isTopLevel = property.parent === file
     if (isTopLevel && property.visibility == DescriptorVisibilities.PRIVATE) {
@@ -35,7 +47,7 @@ internal fun debugInputId(property: IrProperty): String {
     val packageFqName = file.packageFqName
     if (!packageFqName.isRoot) segments.addFirst(packageFqName.asString())
 
-    return segments.joinToString(".")
+    return segments
 }
 
 /**

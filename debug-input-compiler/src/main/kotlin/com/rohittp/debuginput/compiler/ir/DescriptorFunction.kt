@@ -31,6 +31,7 @@ import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrExpression
+import org.jetbrains.kotlin.ir.expressions.impl.IrGetEnumValueImpl
 import org.jetbrains.kotlin.ir.symbols.IrConstructorSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
@@ -228,6 +229,18 @@ internal class DescriptorFunctionEmitter(
      */
     private fun IrBuilderWithScope.defaultOf(site: DebugInputSite): IrExpression {
         val field = site.property.backingField ?: return irNull()
+
+        // An enum constant is a statically reachable singleton, so its field is readable without an
+        // instance. Read the field and not the property: the getter now resolves through the
+        // registry, and a descriptor is supposed to record what the value started as.
+        site.enumEntry?.let { entry ->
+            val enumClass = site.property.parent as? IrClass ?: return irNull()
+            return irGetField(
+                IrGetEnumValueImpl(startOffset, endOffset, enumClass.defaultType, entry.symbol),
+                field,
+            )
+        }
+
         if (field.isStatic) return irGetField(null, field)
 
         val owner = site.property.parent as? IrClass ?: return irNull()

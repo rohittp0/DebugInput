@@ -103,6 +103,8 @@ internal fun compile(
      * that up.
      */
     sourceSetHierarchy: List<String> = emptyList(),
+    /** False switches the frontend from its default LightTree parser to PSI, as the IDE uses. */
+    lightTree: Boolean = true,
 ): CompilationResult {
     val sourceDir = File(workDir, "src").apply { mkdirs() }
     val classesDir = File(workDir, "classes").apply { mkdirs() }
@@ -137,6 +139,7 @@ internal fun compile(
         // so without this the harness happily accepts IR that no iOS build would — which is
         // exactly how a plugin that widened a backing field and read it across files passed
         // every test here and failed on the first real module.
+        useFirLT = lightTree
         verifyIr = "error"
         verifyIrVisibility = true
 

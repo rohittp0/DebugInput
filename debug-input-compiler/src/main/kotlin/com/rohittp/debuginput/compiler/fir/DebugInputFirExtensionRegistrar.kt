@@ -5,6 +5,7 @@ import org.jetbrains.kotlin.fir.analysis.checkers.declaration.DeclarationChecker
 import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirDeclarationChecker
 import org.jetbrains.kotlin.fir.analysis.extensions.FirAdditionalCheckersExtension
 import org.jetbrains.kotlin.fir.declarations.FirProperty
+import org.jetbrains.kotlin.fir.declarations.FirRegularClass
 import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
 
 /**
@@ -34,5 +35,8 @@ internal class DebugInputCheckersExtension(session: FirSession) : FirAdditionalC
     override val declarationCheckers: DeclarationCheckers = object : DeclarationCheckers() {
         override val propertyCheckers: Set<FirDeclarationChecker<FirProperty>> =
             setOf(DebugInputPropertyChecker)
+
+        override val regularClassCheckers: Set<FirDeclarationChecker<FirRegularClass>> =
+            setOf(DebugInputEnumClassChecker)
     }
 }

@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.diagnostics.error1
 import org.jetbrains.kotlin.diagnostics.error2
 import org.jetbrains.kotlin.diagnostics.rendering.BaseDiagnosticRendererFactory
 import org.jetbrains.kotlin.diagnostics.rendering.CommonRenderers
+import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtProperty
 
 /**
@@ -59,6 +60,22 @@ internal object DebugInputErrors : KtDiagnosticsContainer() {
     )
 
     val ENUM_IN_CONTAINER: KtDiagnosticFactory2<String, String> by error2<KtProperty, String, String>(
+        SourceElementPositioningStrategies.DECLARATION_NAME,
+    )
+
+    val NOT_AN_ENUM_CLASS: KtDiagnosticFactory1<String> by error1<KtClass, String>(
+        SourceElementPositioningStrategies.DECLARATION_NAME,
+    )
+
+    val ENUM_WITHOUT_INPUTS: KtDiagnosticFactory1<String> by error1<KtClass, String>(
+        SourceElementPositioningStrategies.DECLARATION_NAME,
+    )
+
+    val ENUM_CONSTRUCTOR_VAR: KtDiagnosticFactory2<String, String> by error2<KtClass, String, String>(
+        SourceElementPositioningStrategies.DECLARATION_NAME,
+    )
+
+    val ENUM_CONSTRUCTOR_TYPE: KtDiagnosticFactory2<String, String> by error2<KtClass, String, String>(
         SourceElementPositioningStrategies.DECLARATION_NAME,
     )
 
@@ -145,6 +162,35 @@ internal object DebugInputErrorMessages : BaseDiagnosticRendererFactory() {
                 "enum. Generated code passes that table in for a whole-input enum, but there is " +
                 "nowhere to put it for an element type: it cannot travel inside a codec spec " +
                 "string, and Kotlin/Native has no reflection to recover it.",
+            CommonRenderers.STRING,
+            CommonRenderers.STRING,
+        )
+        map.put(
+            DebugInputErrors.NOT_AN_ENUM_CLASS,
+            "@DebugInput on the class {0} does nothing: on a class the annotation only means " +
+                "something for an enum class, where it makes every constructor val of every " +
+                "constant an input. Annotate the properties you want to tweak instead.",
+            CommonRenderers.STRING,
+        )
+        map.put(
+            DebugInputErrors.ENUM_WITHOUT_INPUTS,
+            "@DebugInput on the enum class {0} has nothing to instrument: it declares no " +
+                "constructor val of a supported type. A val in the enum body is one value shared " +
+                "by every constant, not one per constant, so it is not an input.",
+            CommonRenderers.STRING,
+        )
+        map.put(
+            DebugInputErrors.ENUM_CONSTRUCTOR_VAR,
+            "@DebugInput cannot instrument {0}: it is a var, and the setter would write a backing " +
+                "field that the rewritten getter ignores. Every other constructor val of {1} is " +
+                "still instrumented.",
+            CommonRenderers.STRING,
+            CommonRenderers.STRING,
+        )
+        map.put(
+            DebugInputErrors.ENUM_CONSTRUCTOR_TYPE,
+            "@DebugInput cannot instrument {0} of type {1}: nothing knows how to store that type. " +
+                "Every other constructor val of the enum is still instrumented.",
             CommonRenderers.STRING,
             CommonRenderers.STRING,
         )

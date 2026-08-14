@@ -20,7 +20,9 @@ import org.jetbrains.kotlin.ir.builders.irGetField
 import org.jetbrains.kotlin.ir.builders.irGetObjectValue
 import org.jetbrains.kotlin.ir.builders.irReturn
 import org.jetbrains.kotlin.ir.builders.irString
+import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
+import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrExpression
@@ -80,8 +82,10 @@ internal class DebugInputIrGenerationExtension(
             val registry = finder.findClass(DebugInputNames.REGISTRY) ?: continue
             val resolvers = RegistryResolvers(finder)
 
-            for (site in inFile) {
-                rewriteGetter(site, pluginContext, registry, resolvers)
+            // One getter per property, not per input: an enum-class input has as many ids as the
+            // enum has constants and exactly one getter to serve them all.
+            for ((_, forProperty) in inFile.groupBy { it.property }) {
+                rewriteGetter(forProperty, pluginContext, finder, file, registry, resolvers)
             }
         }
     }
@@ -92,15 +96,34 @@ internal class DebugInputIrGenerationExtension(
      * getter is the only thing standing between a read and that field.
      */
     private fun rewriteGetter(
-        site: DebugInputSite,
+        sites: List<DebugInputSite>,
         pluginContext: IrPluginContext,
+        finder: DeclarationFinder,
+        file: IrFile,
         registry: IrClassSymbol,
         resolvers: RegistryResolvers,
     ) {
+        val site = sites.first()
         val getter = site.property.getter ?: return
 
+        val idTable = if (site.enumEntry == null) {
+            null
+        } else {
+            val enumClass = site.property.parent as? IrClass ?: return
+            emitEnumIdTable(
+                pluginContext = pluginContext,
+                finder = finder,
+                file = file,
+                enumClass = enumClass,
+                property = site.property,
+                // Ordinal order, which is the order the constants are declared in and the order
+                // `sites` was built in.
+                idsByOrdinal = sites.map { it.id },
+            ) ?: return
+        }
+
         val builder = DeclarationIrBuilder(pluginContext, getter.symbol)
-        val resolved = builder.resolveCall(site, getter, registry, resolvers) ?: return
+        val resolved = builder.resolveCall(site, getter, registry, resolvers, idTable) ?: return
 
         // The JVM backend replaces calls to a DEFAULT_PROPERTY_ACCESSOR with direct field
         // access whenever the call site can reach the field — which is every read inside
@@ -122,17 +145,24 @@ internal class DebugInputIrGenerationExtension(
         getter: IrSimpleFunction,
         registry: IrClassSymbol,
         resolvers: RegistryResolvers,
+        idTable: EnumIdTable?,
     ): IrExpression? {
         val field = site.property.backingField ?: return null
-        val fieldOwner = getter.dispatchReceiverParameter?.let { irGet(it) }
-        val default = irGetField(fieldOwner, field)
+        val receiver = getter.dispatchReceiverParameter
+        val default = irGetField(receiver?.let { irGet(it) }, field)
+        // An enum-class input picks its id off the receiver; everything else knows it statically.
+        val id = when {
+            idTable == null -> irString(site.id)
+            receiver == null -> return null
+            else -> idTable.idOf(this, irGet(receiver))
+        }
 
         return when (val resolution = site.resolution) {
             is DebugInputResolution.Scalar -> {
                 val resolver = resolvers.named(resolution.resolverName) ?: return null
                 irCall(resolver).apply {
                     arguments[0] = irGetObjectValue(registry.owner.defaultType, registry)
-                    arguments[1] = irString(site.id)
+                    arguments[1] = id
                     arguments[2] = default
                 }
             }
@@ -147,7 +177,7 @@ internal class DebugInputIrGenerationExtension(
                 irCall(resolver).apply {
                     typeArguments[0] = getter.returnType
                     arguments[0] = irGetObjectValue(registry.owner.defaultType, registry)
-                    arguments[1] = irString(site.id)
+                    arguments[1] = id
                     arguments[2] = default
                     arguments[3] = irCall(values.symbol)
                 }
@@ -157,7 +187,7 @@ internal class DebugInputIrGenerationExtension(
                 val resolver = resolvers.named(RESOLVE_COMPOSITE) ?: return null
                 val call = irCall(resolver).apply {
                     arguments[0] = irGetObjectValue(registry.owner.defaultType, registry)
-                    arguments[1] = irString(site.id)
+                    arguments[1] = id
                     arguments[2] = default
                     arguments[3] = irString(site.spec)
                 }

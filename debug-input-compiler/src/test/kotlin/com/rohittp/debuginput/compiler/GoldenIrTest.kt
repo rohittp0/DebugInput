@@ -109,6 +109,35 @@ class GoldenIrTest {
         assertGolden("compositeGetter", result.irDumps.getValue("Networking.kt"))
     }
 
+    /**
+     * The shape M3 adds: one getter for every constant, its id taken off the receiver through an
+     * ordinal-indexed table, and a per-constant default read from the constant instance.
+     */
+    @Test
+    fun enumClassInput() {
+        val result = compile(
+            temp.newFolder(),
+            SourceFile(
+                "MagicNumbers.kt",
+                """
+                package com.app.magic
+
+                import com.rohittp.debuginput.DebugInput
+
+                @DebugInput
+                enum class MagicNumbers(vararg val values: Double) {
+                    /** Player speed in m/s. */
+                    INTRO_INFLEXION(3.0),
+                    ROUTE_LINE_WIDTHS(2.0, 4.0, 6.0);
+                }
+                """.trimIndent(),
+            ),
+            module = ":magic",
+        ).assertSucceeded()
+
+        assertGolden("enumClassInput", result.irDumps.getValue("MagicNumbers.kt"))
+    }
+
     @Test
     fun descriptorFunction() {
         val result = compile(
@@ -175,10 +204,24 @@ class GoldenIrTest {
         assertEquals(expectedFile.readText(), actual, "IR for $name changed")
     }
 
-    /** The dump carries the absolute path of a temporary source file. */
+    /**
+     * Drops the absolute path of the temporary source file, and the inherited members the dump
+     * prints for an enum: `clone`, `describeConstable` and `finalize` are the JDK\'s, not this
+     * plugin\'s output, and a JDK upgrade rewriting them would fail a snapshot about something else.
+     */
     private fun normalize(dump: String): String =
         dump.lineSequence()
             .filterNot { it.trimStart().startsWith("// path:") }
+            .filterNot { "/* fake */" in it }
+            .filterNot { it.trim() in INHERITED_MEMBER_ANNOTATIONS }
             .joinToString("\n")
+            .replace(Regex("\n{3,}"), "\n\n")
             .trimEnd() + "\n"
+
+    private companion object {
+        val INHERITED_MEMBER_ANNOTATIONS = setOf(
+            "@IntrinsicConstEvaluation",
+            """@Deprecated(message = "Deprecated in Java")""",
+        )
+    }
 }
