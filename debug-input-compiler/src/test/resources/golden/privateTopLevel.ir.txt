@@ -13,5 +13,5 @@ fun readSpeed(): Int {
 }
 
 fun $debugInputDescriptors$Physics_kt(): List<DebugInputDescriptor> {
-  return mutableListOf<DebugInputDescriptor>(elements = [DebugInputDescriptor(id = "com.app.physics.Physics.kt.speed", displayName = "speed", module = "test-module", section = "Physics", typeKey = "kotlin.Int", docs = "", default = #speed, spec = "int")])
+  return mutableListOf<DebugInputDescriptor>(elements = [DebugInputDescriptor(id = "com.app.physics.Physics.kt.speed", displayName = "speed", module = "test-module", section = "Physics", typeKey = "kotlin.Int", docs = "", default = #speed, spec = "int", sectionDescription = "", sectionPageId = "file:com.app.physics/Physics")])
 }

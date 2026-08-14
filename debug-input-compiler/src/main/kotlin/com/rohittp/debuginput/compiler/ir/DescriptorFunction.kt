@@ -211,6 +211,8 @@ internal class DescriptorFunctionEmitter(
         set("displayName", irString(site.displayName))
         set("module", irString(module))
         set("section", irString(site.section))
+        set("sectionDescription", irString(site.sectionDescription))
+        set("sectionPageId", irString(site.sectionPageId))
         set("typeKey", irString(site.typeKey))
         set("docs", irString(site.docs))
         set("default", defaultOf(site))

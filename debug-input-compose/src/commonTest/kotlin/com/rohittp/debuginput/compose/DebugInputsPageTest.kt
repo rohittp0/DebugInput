@@ -157,6 +157,126 @@ class DebugInputsPageTest {
     }
 
     @Test
+    fun compilerSectionsOpenAsDedicatedPagesWithTheirDescription() = runComposeUiTest {
+        // A top-level property in MagicNumbers.kt has the same display section as the enum.
+        // The enum FQN must keep those two sections distinct.
+        val ordinaryInput = intInput(section = "MagicNumbers")
+        val enumInput = intInput(
+            id = "com.app.magic.MagicNumbers.INTRO.values",
+            displayName = "INTRO",
+            section = "MagicNumbers",
+            sectionDescription = "Numbers that shape animation and rendering.",
+            sectionPageId = "enum:com.app.magic.MagicNumbers",
+        )
+        setContent { DebugInputsPage(listOf(ordinaryInput, enumInput)) }
+
+        onNodeWithContentDescription("open MagicNumbers").assertExists()
+        onNodeWithText("speed").assertExists()
+        onNodeWithText("INTRO").assertDoesNotExist()
+        onNodeWithText("Numbers that shape animation and rendering.").assertDoesNotExist()
+
+        onNodeWithContentDescription("open MagicNumbers").performClick()
+
+        onNodeWithText("INTRO").assertExists()
+        onNodeWithText("Numbers that shape animation and rendering.").assertExists()
+        onNodeWithText("speed").assertDoesNotExist()
+
+        onNodeWithContentDescription("back to debug inputs").performClick()
+
+        onNodeWithText("speed").assertExists()
+        onNodeWithText("INTRO").assertDoesNotExist()
+    }
+
+    @Test
+    fun namedSectionsGroupInputsOnOnePage() = runComposeUiTest {
+        val model = intInput(
+            id = "com.app.ai.model",
+            displayName = "model",
+            section = "Assistant",
+            sectionPageId = "custom:Assistant",
+        )
+        val limit = intInput(
+            id = "com.app.ai.tokenLimit",
+            displayName = "tokenLimit",
+            section = "Assistant",
+            sectionPageId = "custom:Assistant",
+        )
+        setContent { DebugInputsPage(listOf(model, limit)) }
+
+        onNodeWithContentDescription("open Assistant").assertExists()
+        onNodeWithText("2 inputs").assertExists()
+        onNodeWithText("model").assertDoesNotExist()
+        onNodeWithText("tokenLimit").assertDoesNotExist()
+
+        onNodeWithContentDescription("open Assistant").performClick()
+
+        onNodeWithText("model").assertExists()
+        onNodeWithText("tokenLimit").assertExists()
+    }
+
+    @Test
+    fun copyJsonReportsHowManyChangesWereCopied() = runComposeUiTest {
+        val input = intInput()
+        DebugInputRegistry.setValue(input.id, 42, "int")
+        setContent { DebugInputsPage(listOf(input)) }
+
+        onNodeWithText("Copy JSON (1)").performClick()
+
+        onNodeWithText("Copied 1 change").assertExists()
+    }
+
+    @Test
+    fun changedJsonIsStableEscapedAndContainsSourceContext() {
+        val model = intInput(
+            id = "com.app.ai.model",
+            displayName = "model",
+            module = ":app",
+            section = "Assistant",
+            typeKey = "kotlin.String",
+            default = "old",
+            spec = "str",
+        )
+        val speed = intInput()
+        val unchanged = intInput(
+            id = "com.app.physics.unchanged",
+            displayName = "unchanged",
+            default = 7,
+        )
+        DebugInputRegistry.setValue(model.id, "line \"one\"\nline two", "str")
+        DebugInputRegistry.setValue(speed.id, 42, "int")
+        DebugInputRegistry.setValue(unchanged.id, 7, "int")
+
+        assertEquals(
+            """
+            {
+              "version": 1,
+              "changes": [
+                {
+                  "id": "com.app.ai.model",
+                  "module": ":app",
+                  "section": "Assistant",
+                  "name": "model",
+                  "type": "kotlin.String",
+                  "default": "old",
+                  "value": "line \"one\"\nline two"
+                },
+                {
+                  "id": "com.app.physics.speed",
+                  "module": ":domain",
+                  "section": "Physics",
+                  "name": "speed",
+                  "type": "kotlin.Int",
+                  "default": 10,
+                  "value": 42
+                }
+              ]
+            }
+            """.trimIndent(),
+            changedValuesJson(changedInputs(listOf(speed, model, unchanged, speed))),
+        )
+    }
+
+    @Test
     fun descriptorsAreDedupedById() = runComposeUiTest {
         // A diamond in the consumer's project graph hands the page the same input once
         // per path to the module that declares it.
@@ -206,6 +326,9 @@ private fun intInput(
     typeKey: String = "kotlin.Int",
     docs: String = "",
     default: Any? = 10,
+    sectionDescription: String = "",
+    sectionPageId: String? = null,
+    spec: String = "",
 ) = DebugInputDescriptor(
     id = id,
     displayName = displayName,
@@ -214,4 +337,7 @@ private fun intInput(
     typeKey = typeKey,
     docs = docs,
     default = default,
+    sectionDescription = sectionDescription,
+    sectionPageId = sectionPageId,
+    spec = spec,
 )

@@ -24,10 +24,12 @@ All five open questions in §9 are closed. Decisions live in `docs/adr/`, langua
 | §5 (unspecified) descriptor function visibility | Fixed `com.rohittp.debuginput.generated` package, `@Deprecated(level = HIDDEN)` | It must be public to cross module boundaries, but should not pollute consumers' autocomplete or ABI |
 | §2 supported types: "scalars + enums + a custom-renderer registry" | Widened: every primitive, `String`, enums, plus `List`/`Set`/`Array`/the eight primitive arrays/`Pair`/`Triple` of scalars — one nesting level, no `Map`, no enums inside containers | Requested after M1; see the [M2 plan](superpowers/plans/2026-08-14-debug-input-m2-types.md), [ADR-0008](adr/0008-length-prefixed-self-describing-encoding.md) and [ADR-0009](adr/0009-array-inputs-return-a-cached-instance.md). The runtime stays dependency-free: the codec is hand-rolled, not `kotlinx-serialization-json` |
 | §9.1 Kotlin version policy | One Kotlin minor per release (1.0.0 → 2.3.x) with a build-failing version guard | [ADR-0001](adr/0001-pin-one-kotlin-minor-per-release.md) |
-| §9.2 section naming | Two levels: Gradle project path, then declaring class/object/enum/file | Flat lists do not survive a multi-module app |
+| §9.2 section naming | Two levels: Gradle project path, then `section`; its default is the declaring class/object/enum/file and `@DebugInput(section = "…")` can group properties explicitly | Flat lists do not survive a multi-module app |
 | §9.3 id stability | Orphaned overrides stay dormant forever and are ignored; one **Reset all** button, no per-orphan UI | Pruning against an incomplete descriptor list would delete live overrides |
 | §7 publishing | R2 only; consumers declare the repository in `pluginManagement` **and** `dependencyResolutionManagement` | [ADR-0003](adr/0003-publish-to-r2-only.md) |
 | (absent) testing strategy | Behaviour-primary compile tests, a small golden IR set, TestKit fixtures, and `consumer-smoke` as a release gate | The largest gap in the original note |
+| (absent) documentation source and section navigation | Explicit `docs` → declaration KDoc → empty; enum KDoc describes its section; every compiler-generated section has a dedicated page | [ADR-0010](adr/0010-kdoc-and-enum-section-pages.md) |
+| (absent) tester handoff | Copy effective changed values as deterministic, versioned JSON containing source context, old default and new value | [ADR-0011](adr/0011-copy-changed-defaults-as-json.md) |
 
 Two further corrections found while planning:
 

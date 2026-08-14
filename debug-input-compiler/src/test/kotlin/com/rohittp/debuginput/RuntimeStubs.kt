@@ -13,7 +13,7 @@ package com.rohittp.debuginput
  */
 @Retention(AnnotationRetention.BINARY)
 @Target(AnnotationTarget.PROPERTY, AnnotationTarget.CLASS)
-annotation class DebugInput(val docs: String = "")
+annotation class DebugInput(val docs: String = "", val section: String = "")
 
 /**
  * Records which resolver each rewritten getter called and with what, and hands back whatever
@@ -91,7 +91,10 @@ class DebugInputDescriptor(
     val default: Any?,
     val enumConstants: List<String>? = null,
     val spec: String = "",
+    val sectionDescription: String = "",
+    val sectionPageId: String? = null,
 ) {
     override fun toString(): String =
-        "$id|$displayName|$module|$section|$typeKey|$docs|$default|$enumConstants|$spec"
+        "$id|$displayName|$module|$section|$typeKey|$docs|$default|$enumConstants|$spec|" +
+            "$sectionDescription|$sectionPageId"
 }

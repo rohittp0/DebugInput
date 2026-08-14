@@ -5,9 +5,11 @@
 package com.rohittp.debuginput.compiler.fir
 
 import com.rohittp.debuginput.compiler.DebugInputNames
+import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.fir.declarations.DirectDeclarationsAccess
 import org.jetbrains.kotlin.fir.declarations.FirClass
 import org.jetbrains.kotlin.fir.declarations.FirEnumEntry
+import org.jetbrains.kotlin.fir.declarations.FirProperty
 import org.jetbrains.kotlin.fir.expressions.FirAnnotation
 import org.jetbrains.kotlin.fir.expressions.FirLiteralExpression
 import org.jetbrains.kotlin.fir.types.classId
@@ -30,16 +32,22 @@ import org.jetbrains.kotlin.name.Name
  */
 internal fun FirClass.enumEntryDocs(): Map<String, String> =
     declarations.filterIsInstance<FirEnumEntry>().associate { entry ->
-        entry.name.asString() to entry.resolveDocs()
+        entry.name.asString() to docsOf(entry.annotations, entry.source)
     }
 
-private fun FirEnumEntry.resolveDocs(): String {
-    explicitDocs()?.let { return it }
+/** Documentation for an ordinary annotated property, explicit annotation text first. */
+internal fun FirProperty.declarationDocs(): String = docsOf(annotations, source)
+
+/** Documentation for an annotated enum class, used as its page's section description. */
+internal fun FirClass.declarationDocs(): String = docsOf(annotations, source)
+
+private fun docsOf(annotations: List<FirAnnotation>, source: KtSourceElement?): String {
+    annotations.explicitDocs()?.let { return it }
     return source?.rawKDoc()?.let(::kdocToDocs).orEmpty()
 }
 
-private fun FirEnumEntry.explicitDocs(): String? {
-    val annotation = annotations.firstOrNull {
+private fun List<FirAnnotation>.explicitDocs(): String? {
+    val annotation = firstOrNull {
         it.annotationTypeRef.coneType.classId == DebugInputNames.DEBUG_INPUT_ANNOTATION
     } ?: return null
     return annotation.docsArgument()

@@ -65,6 +65,8 @@ class DescriptorFunctionTest {
         assertEquals("speed", speed.displayName)
         assertEquals(":domain", speed.module)
         assertEquals("Physics", speed.section)
+        assertEquals("", speed.sectionDescription)
+        assertEquals("file:com.app.physics/Physics", speed.sectionPageId)
         assertEquals("kotlin.Int", speed.typeKey)
         assertEquals("Player speed in m/s", speed.docs)
         assertEquals(10, speed.default)
@@ -76,7 +78,73 @@ class DescriptorFunctionTest {
 
         val timeout = descriptors.getValue("com.app.Config.timeout")
         assertEquals("Config", timeout.section)
+        assertEquals("class:com.app.Config", timeout.sectionPageId)
         assertEquals(5, timeout.default)
+    }
+
+    @Test
+    fun `an explicit section groups properties under one named page`() {
+        val result = compile(
+            temp.newFolder(),
+            SourceFile(
+                "Model.kt",
+                """
+                package com.app.ai
+
+                import com.rohittp.debuginput.DebugInput
+
+                @DebugInput(section = "Assistant") val model = "gemini"
+                """.trimIndent(),
+            ),
+            SourceFile(
+                "Limits.kt",
+                """
+                package com.app.ai
+
+                import com.rohittp.debuginput.DebugInput
+
+                @DebugInput(section = "Assistant") val tokenLimit = 1024
+                """.trimIndent(),
+            ),
+            module = ":app",
+        ).assertSucceeded()
+
+        val descriptors = result.descriptors(":app")
+        assertEquals(setOf("Assistant"), descriptors.mapTo(mutableSetOf()) { it.section })
+        assertEquals(
+            setOf("custom:Assistant"),
+            descriptors.mapNotNullTo(mutableSetOf()) { it.sectionPageId },
+        )
+    }
+
+    @Test
+    fun `ordinary property docs come from KDoc unless the annotation overrides them`() {
+        val result = compile(
+            temp.newFolder(),
+            SourceFile(
+                "Docs.kt",
+                """
+                package com.app
+
+                import com.rohittp.debuginput.DebugInput
+
+                /** Player speed in metres per second. */
+                @DebugInput val fromKDoc = 10
+
+                /** This text is deliberately overridden. */
+                @DebugInput(docs = "explicit wins") val explicit = 20
+
+                @DebugInput val plain = 30
+                """.trimIndent(),
+            ),
+            module = ":domain",
+        ).assertSucceeded()
+
+        val docs = result.descriptors(":domain").associate { it.displayName to it.docs }
+
+        assertEquals("Player speed in metres per second.", docs.getValue("fromKDoc"))
+        assertEquals("explicit wins", docs.getValue("explicit"))
+        assertEquals("", docs.getValue("plain"))
     }
 
     @Test

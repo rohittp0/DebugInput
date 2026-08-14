@@ -15,8 +15,16 @@ package com.rohittp.debuginput
 @Retention(AnnotationRetention.BINARY)
 @Target(AnnotationTarget.PROPERTY, AnnotationTarget.CLASS)
 public annotation class DebugInput(
-    /** Shown behind the info icon on the page. */
+    /**
+     * Explicit documentation override. When omitted, the annotated declaration's KDoc is shown.
+     * On an enum class, that documentation describes the enum's section page.
+     */
     public val docs: String = "",
+    /**
+     * Page section title. When empty, the declaring class, object or file name is used for a
+     * property, and the enum's name is used for an annotated enum class.
+     */
+    public val section: String = "",
 )
 
 /**

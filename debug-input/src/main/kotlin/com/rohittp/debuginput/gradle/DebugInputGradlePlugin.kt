@@ -9,6 +9,7 @@ import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.PathSensitivity
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
+import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerPluginSupportPlugin
 import org.jetbrains.kotlin.gradle.plugin.SubpluginArtifact
 import org.jetbrains.kotlin.gradle.plugin.SubpluginOption
@@ -22,7 +23,7 @@ private const val RUNTIME_ARTIFACT = "debug-input-runtime"
 private const val COMPILER_PLUGIN_ID = "com.rohittp.debug-input"
 
 /**
- * The `Usage` value that marks the one configuration carrying descriptor manifests.
+ * The `Usage` value that marks configurations carrying descriptor manifests.
  * `Usage` is matched by equality and every other configuration a Kotlin project exposes
  * carries a different one, so requesting this cannot accidentally select `apiElements`.
  */
@@ -59,15 +60,17 @@ public class DebugInputGradlePlugin : KotlinCompilerPluginSupportPlugin {
         val mismatch = kotlinVersionMismatchMessage(pluginVersion, target.getKotlinPluginVersion())
         if (mismatch != null) throw GradleException(mismatch)
 
-        // Registered even when nothing turns out to be instrumented: a dependent project
-        // resolves this by name, and an empty configuration is a clearer answer than a
-        // missing one.
-        target.configurations.consumable(DESCRIPTOR_ELEMENTS) {
-            description = "Descriptor manifests produced by debug-input."
-            attributes.attribute(
-                Usage.USAGE_ATTRIBUTE,
-                target.objects.named(Usage::class.java, DESCRIPTORS_USAGE),
-            )
+        // Split by platform so an Android consumer does not build every Native compilation just
+        // to read manifests that all name the same module function.
+        listOf(KotlinPlatformType.androidJvm, KotlinPlatformType.native).forEach { platformType ->
+            target.configurations.consumable(descriptorElementsName(platformType)) {
+                description = "Debug-input descriptor manifests for $platformType."
+                attributes.attribute(
+                    Usage.USAGE_ATTRIBUTE,
+                    target.objects.named(Usage::class.java, DESCRIPTORS_USAGE),
+                )
+                attributes.attribute(KotlinPlatformType.attribute, platformType)
+            }
         }
     }
 
@@ -136,15 +139,17 @@ public class DebugInputGradlePlugin : KotlinCompilerPluginSupportPlugin {
     }
 
     /**
-     * Exposes this compilation's descriptor manifest to dependent projects. All
-     * compilations share one configuration: they all report the same descriptor function
-     * name, so a consumer only needs whichever manifest it can see.
+     * Exposes this compilation's descriptor manifest to dependent projects. Compilations on the
+     * same platform share a configuration because they report the same descriptor function name;
+     * the platform split keeps an Android consumer from building Native targets to read them.
      */
     private fun publishDescriptorManifest(
         kotlinCompilation: KotlinCompilation<*>,
         manifestOut: Provider<RegularFile>,
     ) {
-        kotlinCompilation.project.configurations.named(DESCRIPTOR_ELEMENTS).configure {
+        kotlinCompilation.project.configurations
+            .named(descriptorElementsName(kotlinCompilation.platformType))
+            .configure {
             outgoing.artifact(manifestOut) {
                 // buildDirectory.file() carries no task dependency of its own.
                 builtBy(kotlinCompilation.compileTaskProvider)
@@ -169,7 +174,7 @@ public class DebugInputGradlePlugin : KotlinCompilerPluginSupportPlugin {
         kotlinCompilation: KotlinCompilation<*>,
     ): Provider<List<String>> {
         val project = kotlinCompilation.project
-        val buckets = kotlinCompilation.allKotlinSourceSets
+        val sourceSetBuckets = kotlinCompilation.allKotlinSourceSets
             .flatMap {
                 listOf(
                     it.apiConfigurationName,
@@ -178,6 +183,15 @@ public class DebugInputGradlePlugin : KotlinCompilerPluginSupportPlugin {
                 )
             }
             .mapNotNull(project.configurations::findByName)
+        // Android application dependencies are commonly declared on the AGP-owned
+        // `implementation` bucket. That bucket is part of `debugCompileClasspath`, but it is
+        // not one of the Kotlin source-set buckets above. Extending from the compilation's
+        // complete compile-dependency configuration covers both shapes; `isTransitive = false`
+        // below still limits descriptor collection to direct project dependencies.
+        val compileDependencies = project.configurations.findByName(
+            kotlinCompilation.compileDependencyConfigurationName,
+        )
+        val buckets = (sourceSetBuckets + listOfNotNull(compileDependencies)).distinct()
 
         val descriptors = project.configurations.resolvable(
             "debugInputDescriptorsFor${kotlinCompilation.configurationSuffix}",
@@ -188,6 +202,7 @@ public class DebugInputGradlePlugin : KotlinCompilerPluginSupportPlugin {
                 Usage.USAGE_ATTRIBUTE,
                 project.objects.named(Usage::class.java, DESCRIPTORS_USAGE),
             )
+            attributes.attribute(KotlinPlatformType.attribute, kotlinCompilation.platformType)
             buckets.forEach(::extendsFrom)
         }
 
@@ -225,6 +240,9 @@ private val KotlinCompilation<*>.configurationSuffix: String
     get() = sequenceOf(target.name, compilationName)
         .filter(String::isNotBlank)
         .joinToString("") { it.replaceFirstChar(Char::uppercaseChar) }
+
+private fun descriptorElementsName(platformType: KotlinPlatformType): String =
+    "$DESCRIPTOR_ELEMENTS${platformType.name.replaceFirstChar(Char::uppercaseChar)}"
 
 /**
  * This plugin's own version, which is also the version of the compiler and runtime

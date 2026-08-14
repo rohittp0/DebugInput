@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrProperty
+import org.jetbrains.kotlin.ir.util.fqNameWhenAvailable
 
 /**
  * The id an input is known by across launches and refactors, per
@@ -58,6 +59,24 @@ internal fun debugInputSection(property: IrProperty): String {
     val owner = property.parent
     if (owner is IrClass) return owner.name.asString()
     return (owner as? IrFile)?.baseName?.removeSuffix(".kt") ?: owner.toString()
+}
+
+/**
+ * Stable identity of the section page produced by the compiler. The visible section title is not
+ * enough: two classes or files may legitimately share a simple name without describing one page.
+ */
+internal fun debugInputSectionPageId(property: IrProperty): String {
+    val owner = property.parent
+    if (owner is IrClass) {
+        val identity = owner.fqNameWhenAvailable?.asString()
+            ?: debugInputId(property).substringBeforeLast('.')
+        return "class:$identity"
+    }
+
+    val file = owner as? IrFile
+    val packageName = file?.packageFqName?.asString().orEmpty()
+    val fileName = file?.baseName?.removeSuffix(".kt") ?: debugInputSection(property)
+    return "file:$packageName/$fileName"
 }
 
 /** `Physics.kt` out of whatever absolute path the compiler was handed. */

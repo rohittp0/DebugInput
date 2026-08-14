@@ -104,6 +104,30 @@ class EnumDocsTest {
         assertEquals("", docs.getValue("PLAIN"))
     }
 
+    @Test
+    fun `the enum KDoc describes its section page`() {
+        val descriptors = compileAnnotated().descriptors(":magic")
+        val enumDescriptors = descriptors.filter { it.sectionPageId?.startsWith("enum:") == true }
+
+        assertEquals(
+            setOf("Numbers that shape animation and rendering."),
+            enumDescriptors.mapTo(mutableSetOf()) { it.sectionDescription },
+        )
+        assertEquals(
+            setOf("enum:com.app.magic.MagicNumbers"),
+            enumDescriptors.mapNotNull { it.sectionPageId }.toSet(),
+        )
+        assertEquals(
+            setOf("Animation constants"),
+            enumDescriptors.mapTo(mutableSetOf()) { it.section },
+        )
+
+        val ordinary = descriptors.single { it.displayName == "ordinary" }
+        assertEquals("Ordinary property documentation.", ordinary.docs)
+        assertEquals("", ordinary.sectionDescription)
+        assertEquals("file:com.app.magic/MagicNumbers", ordinary.sectionPageId)
+    }
+
     /**
      * The asymmetry this guards against is silent: a mechanism that only worked under one parser
      * would give docs in the IDE and empty docs in the real build, or the reverse.
@@ -120,6 +144,16 @@ class EnumDocsTest {
         assertEquals(underLightTree, underPsi)
         assertTrue("""docs = "Player speed in m/s."""" in underPsi, underPsi)
         assertTrue("""docs = "explicit wins"""" in underPsi, underPsi)
+        assertTrue(
+            """sectionDescription = "Numbers that shape animation and rendering.""" in underPsi,
+            underPsi,
+        )
+        assertTrue(
+            """sectionPageId = "enum:com.app.magic.MagicNumbers"""" in underPsi,
+            underPsi,
+        )
+        assertTrue("""section = "Animation constants"""" in underPsi, underPsi)
+        assertTrue("""docs = "Ordinary property documentation."""" in underPsi, underPsi)
     }
 
     /** Without the `// path:` line, which carries the temporary directory this run happened in. */
@@ -138,7 +172,8 @@ class EnumDocsTest {
 
             import com.rohittp.debuginput.DebugInput
 
-            @DebugInput
+            /** Numbers that shape animation and rendering. */
+            @DebugInput(section = "Animation constants")
             enum class MagicNumbers(vararg val values: Double) {
                 /** Player speed in m/s. */
                 FROM_KDOC(3.0),
@@ -149,6 +184,9 @@ class EnumDocsTest {
 
                 PLAIN(1.0);
             }
+
+            /** Ordinary property documentation. */
+            @DebugInput val ordinary = 4
             """.trimIndent(),
         ),
         module = ":magic",

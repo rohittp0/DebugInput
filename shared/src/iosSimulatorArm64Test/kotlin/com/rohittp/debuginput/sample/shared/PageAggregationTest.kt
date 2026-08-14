@@ -2,7 +2,9 @@ package com.rohittp.debuginput.sample.shared
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
 import com.rohittp.debuginput.DebugInputInternalApi
 import com.rohittp.debuginput.DebugInputRegistry
@@ -32,8 +34,12 @@ class PageAggregationTest {
     fun `the page shows inputs declared in a dependency module`() = runComposeUiTest {
         setContent { SampleDebugScreen() }
 
+        onNodeWithContentDescription("open Physics").performClick()
         onNodeWithText("speed").assertIsDisplayed()
         onNodeWithText("droppedFrameBudget").assertIsDisplayed()
+
+        onNodeWithContentDescription("back to debug inputs").performClick()
+        onNodeWithContentDescription("open Tiers").performClick()
         onNodeWithText("freeLimit").assertIsDisplayed()
         onNodeWithText("paidLimit").assertIsDisplayed()
     }
@@ -55,7 +61,11 @@ class PageAggregationTest {
 
         // 10 is speed's default; 25 is Tiers.freeLimit's non-constant `baseLimit * 5`,
         // which only reaches the page if the descriptor read it from the backing field.
+        onNodeWithContentDescription("open Physics").performClick()
         onNodeWithText("10").assertIsDisplayed()
+
+        onNodeWithContentDescription("back to debug inputs").performClick()
+        onNodeWithContentDescription("open Tiers").performClick()
         onNodeWithText("25").assertIsDisplayed()
     }
 }

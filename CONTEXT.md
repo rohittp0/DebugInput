@@ -93,12 +93,16 @@ An ordinary read of the input; correct everywhere, but does not recompose when a
 ### The UI
 
 **Page**:
-`DebugInputsPage()`, the single entry point that renders every input it can see.
+`DebugInputsPage()`, the single entry point that renders every input it can see. Each compiler-
+generated section is one root link and opens its own page. It can copy all currently changed values
+as a versioned JSON handoff for developers.
 _Avoid_: screen, panel, menu, debug menu
 
 **Module**: The Gradle project an input was declared in; the page's outer grouping level.
 
-**Section**: The declaring class, object, enum or file grouping a set of rows within a module.
+**Section**: A named grouping of rows within a module. By default it is the declaring class,
+object, enum or file; `@DebugInput(section = "…")` can group properties under an explicit name.
+An enum-class section may carry the enum's KDoc as its description.
 _Avoid_: category, group, header
 
 **Renderer**: The composable that edits one type of value.
@@ -113,9 +117,12 @@ _Avoid_: category, group, header
 - A **debug input** has exactly one **default** and at most one **override**
 - An **override** is identified by an **id** and persisted in the **override store**
 - A **descriptor** describes exactly one **debug input**
-- A **descriptor** belongs to one **section**, and a **section** to one **module**
+- A **descriptor** belongs to one **section**, and a **section** to one **module**; compiler-
+  generated descriptors carry a stable section-page id, and enum descriptors also share the
+  enum's section description
 - An **instrumented module** produces one descriptor function and one **descriptor manifest**
-- The **page** renders one **renderer** per input, chosen by **type key**
+- The **page** renders one **renderer** per input, chosen by **type key**, with sections reached
+  through dedicated subpages
 - An **enum-class input** is one constructor `val` of one constant; a **enum-typed input** is one input whose type is an enum — these are unrelated mechanisms
 
 ## Example dialogue

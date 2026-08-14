@@ -13,5 +13,5 @@ fun show() {
 }
 
 fun $debugInputDescriptors$Screen_kt(): List<DebugInputDescriptor> {
-  return mutableListOf<DebugInputDescriptor>(elements = [DebugInputDescriptor(id = "com.app.speed", displayName = "speed", module = ":app", section = "Screen", typeKey = "kotlin.Int", docs = "", default = #speed, spec = "int")])
+  return mutableListOf<DebugInputDescriptor>(elements = [DebugInputDescriptor(id = "com.app.speed", displayName = "speed", module = ":app", section = "Screen", typeKey = "kotlin.Int", docs = "", default = #speed, spec = "int", sectionDescription = "", sectionPageId = "file:com.app/Screen")])
 }

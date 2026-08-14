@@ -15,7 +15,7 @@ public class DebugInputDescriptor(
     public val section: String,
     /** Fully qualified name of the input's type. `kotlin.Int`. */
     public val typeKey: String,
-    /** The annotation's `docs` argument, empty when absent. */
+    /** The declaration's KDoc, or its explicit annotation override, empty when absent. */
     public val docs: String,
     /** The value the property's initializer produced. */
     public val default: Any?,
@@ -30,6 +30,10 @@ public class DebugInputDescriptor(
      * `int` — the only type M1 supported.
      */
     public val spec: String = "",
+    /** Documentation shown at the top of this section's page, empty when absent. */
+    public val sectionDescription: String = "",
+    /** Stable identity when this section has its own page; null for legacy/manual descriptors. */
+    public val sectionPageId: String? = null,
 ) {
     override fun toString(): String = "DebugInputDescriptor($id: $typeKey = $default)"
 }

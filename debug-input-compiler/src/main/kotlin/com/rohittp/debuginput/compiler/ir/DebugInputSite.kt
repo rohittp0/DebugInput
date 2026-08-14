@@ -7,9 +7,11 @@ import com.rohittp.debuginput.compiler.DebugInputNames
 import com.rohittp.debuginput.compiler.DebugInputResolution
 import com.rohittp.debuginput.compiler.DebugInputTypeClassification
 import com.rohittp.debuginput.compiler.classifyDebugInputType
+import com.rohittp.debuginput.compiler.fir.declarationDocs
 import com.rohittp.debuginput.compiler.fir.enumEntryDocs
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.fir.backend.FirMetadataSource
+import org.jetbrains.kotlin.ir.declarations.IrAnnotationContainer
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
@@ -19,6 +21,7 @@ import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.classFqName
+import org.jetbrains.kotlin.ir.util.fqNameWhenAvailable
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 
 /**
@@ -35,6 +38,8 @@ internal class DebugInputSite(
     val id: String,
     val displayName: String,
     val section: String,
+    val sectionDescription: String,
+    val sectionPageId: String,
     val docs: String,
     val typeKey: String,
     /** The ADR-0008 codec spec literal for this input's type, e.g. `int`, `lst<str>`, `darr`. */
@@ -98,7 +103,10 @@ private fun IrClass.enumClassSites(file: IrFile): List<DebugInputSite> {
     val qualifyWithProperty = properties.size > 1
 
     val docsByEntry = resolveEnumEntryDocs()
-    val section = name.asString()
+    val section = debugInputStringArgument("section").takeIf { !it.isNullOrBlank() }
+        ?: name.asString()
+    val sectionDescription = resolveDeclarationDocs()
+    val sectionPageId = "enum:${fqNameWhenAvailable?.asString() ?: name.asString()}"
 
     return properties.flatMap { (property, supported) ->
         entries.map { entry ->
@@ -113,6 +121,8 @@ private fun IrClass.enumClassSites(file: IrFile): List<DebugInputSite> {
                     entryName
                 },
                 section = section,
+                sectionDescription = sectionDescription,
+                sectionPageId = sectionPageId,
                 docs = docsByEntry[entryName].orEmpty(),
                 typeKey = supported.typeKey,
                 spec = supported.spec,
@@ -156,29 +166,39 @@ private fun IrProperty.supportedType(): SupportedType? {
 private fun IrClass.resolveEnumEntryDocs(): Map<String, String> =
     (metadata as? FirMetadataSource.Class)?.fir?.enumEntryDocs().orEmpty()
 
+/** The enum class's own KDoc (or explicit annotation text), used by its dedicated page. */
+private fun IrClass.resolveDeclarationDocs(): String =
+    (metadata as? FirMetadataSource.Class)?.fir?.declarationDocs().orEmpty()
+
 private fun IrProperty.toSiteOrNull(file: IrFile): DebugInputSite? {
     val supported = supportedType() ?: return null
+    val explicitSection = debugInputStringArgument("section").takeIf { !it.isNullOrBlank() }
     return DebugInputSite(
         property = this,
         file = file,
         id = debugInputId(this),
         displayName = name.asString(),
-        section = debugInputSection(this),
-        docs = debugInputDocs(),
+        section = explicitSection ?: debugInputSection(this),
+        sectionDescription = "",
+        sectionPageId = explicitSection?.let { "custom:$it" } ?: debugInputSectionPageId(this),
+        docs = resolveDeclarationDocs(),
         typeKey = supported.typeKey,
         spec = supported.spec,
         resolution = supported.resolution,
     )
 }
 
-/**
- * The annotation's `docs` argument. Empty when it was left at its default, which reaches IR
- * as a missing argument rather than as the default expression.
- */
-private fun IrProperty.debugInputDocs(): String {
+/** KDoc by default, with an explicit annotation argument taking precedence. */
+private fun IrProperty.resolveDeclarationDocs(): String =
+    (metadata as? FirMetadataSource.Property)?.fir?.declarationDocs()
+        ?: debugInputStringArgument("docs").orEmpty()
+
+/** Reads an explicitly supplied string argument without materialising the annotation default. */
+private fun IrAnnotationContainer.debugInputStringArgument(name: String): String? {
     val annotationFqName = DebugInputNames.DEBUG_INPUT_ANNOTATION.asSingleFqName()
-    val annotation = annotations.firstOrNull { it.type.classFqName == annotationFqName } ?: return ""
-    val index = annotation.symbol.owner.parameters.indexOfFirst { it.name.asString() == "docs" }
-    if (index < 0) return ""
-    return (annotation.arguments.getOrNull(index) as? IrConst)?.value as? String ?: ""
+    val annotation = annotations.firstOrNull { it.type.classFqName == annotationFqName }
+        ?: return null
+    val index = annotation.symbol.owner.parameters.indexOfFirst { it.name.asString() == name }
+    if (index < 0) return null
+    return (annotation.arguments.getOrNull(index) as? IrConst)?.value as? String
 }

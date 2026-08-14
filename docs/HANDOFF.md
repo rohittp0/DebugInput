@@ -4,6 +4,34 @@ Written at the end of a long session. M1 and M2 are complete and committed; M3 w
 flight when this was written. Read this, then `CONTEXT.md`, then `docs/design-note.md`
 (amendment table first), then the ADRs.
 
+## Follow-up after M3: declaration KDoc and section pages
+
+Implemented in the working tree after `c9c8d30`:
+
+- ordinary `@DebugInput` properties now use explicit `docs` → property KDoc → empty, using
+  the same parser-agnostic FIR source walk as enum entries;
+- an annotated enum class's own KDoc becomes its section description;
+- `@DebugInput(section = "…")` optionally groups ordinary properties under one named section;
+  when omitted, the declaring class/object/enum or file name remains the title;
+- compiler-generated descriptors carry a stable `sectionPageId`, and enum descriptors also
+  carry `sectionDescription`;
+- `DebugInputsPage()` renders every compiler-generated section as one root link to a dedicated
+  page with Back, Reset all, an optional section description and its rows.
+- the page uses compact tonal cards and clearer type/change hierarchy, and Copy JSON exports every
+  effective changed value with its id, source context, old default and new value.
+
+Stable identity is separate from the title: the ordinary top-level section for
+`MagicNumbers.kt` is also displayed as `MagicNumbers`, and grouping only by display text merges
+unrelated inputs. Explicit sections intentionally share `custom:<title>` within one module.
+This is recorded in ADR-0010 and pinned by compiler and Compose regression tests.
+
+Verified before this handoff update: 91 compiler tests pass, including byte-identical
+LightTree/PSI output; the Compose iOS simulator suite passes; Gradle-plugin, Android/iOS
+runtime, Android/iOS domain, and shared iOS suites pass. The updated `0.1.0-SNAPSHOT` was
+republished locally and TravelAnimator assembled successfully with 107 current descriptors.
+On the physical CPH2649, the root showed ordinary-property KDoc and a 106-input
+`MagicNumbers` link; its page showed the enum KDoc and generated editors.
+
 ## Where things stand
 
 Branch **`debug-input-m1-m2`**, two commits, not merged into `main`.

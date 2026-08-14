@@ -44,6 +44,11 @@ class EnumClassInputTest {
         )
         assertEquals(listOf("darr"), descriptors.map { it.spec }.distinct())
         assertEquals(listOf("kotlin.DoubleArray"), descriptors.map { it.typeKey }.distinct())
+        assertEquals(
+            listOf("enum:com.app.magic.MagicNumbers"),
+            descriptors.mapNotNull { it.sectionPageId }.distinct(),
+        )
+        assertEquals(listOf(""), descriptors.map { it.sectionDescription }.distinct())
     }
 
     /**

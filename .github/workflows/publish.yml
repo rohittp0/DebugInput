@@ -1,0 +1,226 @@
+name: Build and Publish
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "LICENSE"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Public coordinates are immutable. Serialising releases prevents two pushes from
+# resolving and attempting to publish the same next version.
+concurrency:
+  group: publish-main
+  cancel-in-progress: false
+
+jobs:
+  resolve-version:
+    name: Resolve release version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - id: release
+        name: Resolve the next public version
+        shell: bash
+        env:
+          R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${R2_PUBLIC_URL:-}" ]]; then
+            echo "::error::Missing publishing value: R2_PUBLIC_URL"
+            exit 1
+          fi
+
+          base="${R2_PUBLIC_URL%/}/com/rohittp/debug-input/com.rohittp.debug-input.gradle.plugin"
+
+          pom_status() {
+            curl --silent --output /dev/null --write-out '%{http_code}' \
+              --retry 5 --retry-delay 3 --retry-all-errors \
+              --head "${base}/$1/com.rohittp.debug-input.gradle.plugin-$1.pom" || echo 000
+          }
+
+          is_greater() {
+            [[ "$1" != "$2" && "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -1)" == "$1" ]]
+          }
+
+          declared=$(sed -n 's/^VERSION_NAME=//p' gradle.properties | tr -d '[:space:]')
+          if [[ ! "$declared" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?$ ]]; then
+            echo "::error::VERSION_NAME must be MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-SNAPSHOT: $declared"
+            exit 1
+          fi
+
+          metadata=$(curl --fail --silent --retry 3 --retry-delay 2 \
+            "${base}/maven-metadata.xml" || true)
+          published_latest=""
+          if [[ -n "$metadata" ]]; then
+            published_latest=$(printf '%s' "$metadata" \
+              | grep -o '<version>[^<]*</version>' \
+              | sed -e 's|<version>||g' -e 's|</version>||g' \
+              | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
+              | sort -V | tail -1 || true)
+          fi
+
+          declared_release=${declared%-SNAPSHOT}
+          if [[ -z "$published_latest" ]]; then
+            version="$declared_release"
+            source="first release from VERSION_NAME"
+          elif [[ "$declared" != *-SNAPSHOT ]] && is_greater "$declared" "$published_latest"; then
+            version="$declared"
+            source="declared VERSION_NAME"
+          else
+            IFS='.' read -r major minor patch <<<"$published_latest"
+            attempts=0
+            while :; do
+              patch=$((patch + 1))
+              version="${major}.${minor}.${patch}"
+              status=$(pom_status "$version")
+              [[ "$status" == "404" ]] && break
+              if [[ "$status" != "200" ]]; then
+                echo "::error::Unexpected status $status probing version $version"
+                exit 1
+              fi
+              attempts=$((attempts + 1))
+              if ((attempts >= 20)); then
+                echo "::error::No unused patch version found after 20 attempts from $published_latest"
+                exit 1
+              fi
+            done
+            source="patch increment from published $published_latest"
+          fi
+
+          status=$(pom_status "$version")
+          if [[ "$status" == "200" ]]; then
+            echo "::error::Release already exists: $version"
+            exit 1
+          fi
+          if [[ "$status" != "404" ]]; then
+            echo "::error::Unexpected status $status probing version $version"
+            exit 1
+          fi
+
+          echo "Resolved version $version ($source)" >> "$GITHUB_STEP_SUMMARY"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: resolve-version
+    name: Publish ${{ needs.resolve-version.outputs.version }}
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Verify publishing configuration
+        shell: bash
+        env:
+          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+          R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          required=(R2_ENDPOINT R2_BUCKET R2_PUBLIC_URL R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY)
+          for name in "${required[@]}"; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing publishing value: $name"
+              exit 1
+            fi
+          done
+
+      - name: Test and publish to an isolated local repository
+        env:
+          VERSION: ${{ needs.resolve-version.outputs.version }}
+        run: >-
+          ./gradlew --no-configuration-cache clean
+          -PVERSION_NAME="$VERSION"
+          :debug-input-compiler:test
+          :debug-input:test
+          :debug-input-runtime:testAndroidHostTest
+          :debug-input-runtime:iosSimulatorArm64Test
+          :debug-input-compose:iosSimulatorArm64Test
+          :domain:testAndroidHostTest
+          :domain:iosSimulatorArm64Test
+          :shared:iosSimulatorArm64Test
+          :app:assembleDebug
+          :app:assembleRelease
+          :shared:linkDebugFrameworkIosArm64
+          :shared:linkReleaseFrameworkIosArm64
+          :debug-input:publishAllPublicationsToLocalTestRepository
+          :debug-input-compiler:publishAllPublicationsToLocalTestRepository
+          :debug-input-runtime:publishAllPublicationsToLocalTestRepository
+          :debug-input-compose:publishAllPublicationsToLocalTestRepository
+
+      - name: Resolve the shipped plugin path from the local repository
+        env:
+          VERSION: ${{ needs.resolve-version.outputs.version }}
+        run: >-
+          ./gradlew --no-configuration-cache -p consumer-smoke
+          -PdebugInputVersion="$VERSION"
+          compileKotlinIosSimulatorArm64
+
+      - name: Publish every coordinate to R2
+        env:
+          VERSION: ${{ needs.resolve-version.outputs.version }}
+          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: >-
+          ./gradlew --no-configuration-cache
+          -PVERSION_NAME="$VERSION"
+          :debug-input:publishAllPublicationsToR2Repository
+          :debug-input-compiler:publishAllPublicationsToR2Repository
+          :debug-input-runtime:publishAllPublicationsToR2Repository
+          :debug-input-compose:publishAllPublicationsToR2Repository
+
+      - name: Verify the public marker and artifacts
+        shell: bash
+        env:
+          VERSION: ${{ needs.resolve-version.outputs.version }}
+          R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+        run: |
+          set -euo pipefail
+          base="${R2_PUBLIC_URL%/}"
+          artifacts=(
+            "com/rohittp/debug-input/com.rohittp.debug-input.gradle.plugin/$VERSION/com.rohittp.debug-input.gradle.plugin-$VERSION.pom"
+            "com/rohittp/debug-input/$VERSION/debug-input-$VERSION.jar"
+            "com/rohittp/debug-input-compiler/$VERSION/debug-input-compiler-$VERSION.jar"
+            "com/rohittp/debug-input-runtime/$VERSION/debug-input-runtime-$VERSION.module"
+            "com/rohittp/debug-input-compose/$VERSION/debug-input-compose-$VERSION.module"
+          )
+          for artifact in "${artifacts[@]}"; do
+            curl --fail --silent --show-error \
+              --retry 12 --retry-delay 5 --retry-all-errors \
+              --output /dev/null "$base/$artifact"
+          done
+
+      - name: Resolve the public release without local caches
+        env:
+          VERSION: ${{ needs.resolve-version.outputs.version }}
+          R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+          GRADLE_USER_HOME: ${{ runner.temp }}/debug-input-public-gradle
+        run: >-
+          ./gradlew --no-configuration-cache -p consumer-smoke
+          -PdebugInputVersion="$VERSION"
+          -PdebugInputRepositoryUrl="$R2_PUBLIC_URL"
+          compileKotlinIosSimulatorArm64
