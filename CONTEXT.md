@@ -95,7 +95,9 @@ An ordinary read of the input; correct everywhere, but does not recompose when a
 **Page**:
 `DebugInputsPage()`, the single entry point that renders every input it can see. Each compiler-
 generated section is one root link and opens its own page. It can copy all currently changed values
-as a versioned JSON handoff for developers.
+as a versioned JSON handoff for developers. A search bar on every page matches display names and
+ids: from the root it reaches into section pages and opens the matching page at the input; on a
+section page it filters that page only (ADR-0012).
 _Avoid_: screen, panel, menu, debug menu
 
 **Module**: The Gradle project an input was declared in; the page's outer grouping level.

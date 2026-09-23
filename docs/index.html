@@ -85,6 +85,7 @@
 <span class="code-annotation">@DebugInput</span>
 <span class="code-keyword">val</span> playbackSpeed = <span class="code-number">1.0</span></code></pre>
         <div class="demo-divider"></div>
+        <div class="demo-search"><span>⌕</span> speed</div>
         <div class="demo-page">
           <div>
             <span class="demo-kicker">ANIMATION</span>
@@ -334,7 +335,8 @@ MINIMUM_DURATION_CEILING_SEC(<span class="code-number">8.0</span>)</code></pre>
           <h2>A settings page that scales from one value to hundreds</h2>
           <p class="section-intro">
             <code>DebugInputsPage()</code> inherits the host app's Material theme and fills its
-            bounded parent. Sections become subpages, keeping the root readable.
+            bounded parent. Sections become subpages, keeping the root readable, and a search bar
+            on every page finds any input by name.
           </p>
 
           <div class="feature-list">
@@ -344,6 +346,25 @@ MINIMUM_DURATION_CEILING_SEC(<span class="code-number">8.0</span>)</code></pre>
             <div><span>04</span><div><strong>Module-aware aggregation</strong><p>Inputs from dependent modules are collected, de-duplicated by id, and sorted deterministically.</p></div></div>
             <div><span>05</span><div><strong>Search across pages</strong><p>A search bar on every page matches names and ids. From the root it reaches into section pages and opens the page at the matching input; inside a section it filters that page.</p></div></div>
           </div>
+
+          <h3>Search</h3>
+          <p>
+            Every page has a search bar at the top. It matches an input's display name or its stable
+            id, ignoring case, so both <code>speed</code> and <code>app.physics</code> find
+            <code>com.app.physics.speed</code>. What the results look like depends on where you search:
+          </p>
+          <table>
+            <thead><tr><th>Searching from</th><th>Covers</th><th>A match shows as</th></tr></thead>
+            <tbody>
+              <tr><td>The root page</td><td>Every input, including those on section pages</td><td>An editable row when the input sits on the root; otherwise a result naming its section. Tapping the result opens that section page, scrolled to the input and outlined.</td></tr>
+              <tr><td>A section page</td><td>That page's inputs only</td><td>The input's editable row; the rest of the page is filtered out.</td></tr>
+            </tbody>
+          </table>
+          <p>
+            Back from a section page returns to the root with the same query and results. Clearing the
+            field restores the full page. Search needs no setup and no API: it is part of
+            <code>DebugInputsPage()</code> from 0.2.0.
+          </p>
 
           <div class="callout callout-tip">
             <strong>Host responsibility</strong>
@@ -449,6 +470,7 @@ MINIMUM_DURATION_CEILING_SEC(<span class="code-number">8.0</span>)</code></pre>
             <details><summary>Plugin <code>com.rohittp.debug-input</code> was not found</summary><p>Add <code>https://maven.rohittp.com</code> inside <code>pluginManagement.repositories</code> in the root settings file. A dependency repository alone cannot resolve a Gradle plugin marker.</p></details>
             <details><summary><code>debug-input-runtime</code> or Compose cannot be resolved</summary><p>Add the same repository inside <code>dependencyResolutionManagement.repositories</code>. Plugin and library resolution are separate.</p></details>
             <details><summary>The build reports a Kotlin version mismatch</summary><p>Use Kotlin <code>2.4.20</code> for DebugInput <span data-debug-input-version>latest</span>. This guard prevents binary-incompatible compiler internals from failing later with obscure FIR or IR errors.</p></details>
+            <details><summary>Which DebugInput version matches my Kotlin version?</summary><p>Each release line is built for exactly one Kotlin minor: <code>0.2.x</code> for Kotlin <code>2.4.x</code> (built on <code>2.4.20</code>) and <code>0.1.x</code> for Kotlin <code>2.3.x</code> (built on <code>2.3.21</code>). A project still on Kotlin 2.3 should stay on <code>0.1.0</code>; upgrading to 0.2.0 needs no source changes beyond the Kotlin bump.</p></details>
             <details><summary>The page is empty</summary><p>Confirm the plugin is applied to the module that declares inputs and that <code>DebugInputsPage()</code> is compiled in an instrumented module. An empty page is expected in release builds.</p></details>
             <details><summary>A value resets after editing</summary><p>Invalid text is not stored. For composites, every element must match the declared shape. A stored override from an older type is dormant and the current declaration resolves its default.</p></details>
             <details><summary>Two sections have the same title</summary><p>Default sections keep separate internal page identities even when two files share a name. If they are conceptually one page, assign the same explicit <code>section</code> title.</p></details>
