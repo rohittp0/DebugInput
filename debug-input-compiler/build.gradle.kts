@@ -20,8 +20,8 @@ java {
 kotlin {
     compilerOptions {
         // FirDeclarationChecker.check takes its CheckerContext and DiagnosticReporter as
-        // context parameters in 2.3.21, and the feature is still behind a flag there, so
-        // overriding it is impossible without this.
+        // context parameters, which were introduced behind this flag in 2.3, so overriding it
+        // needs the flag on.
         freeCompilerArgs.add("-Xcontext-parameters")
 
         // The compiler plugin API is experimental by construction; ADR-0001 pins the

@@ -5,6 +5,7 @@ package com.rohittp.debuginput.compose
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -35,6 +36,9 @@ private const val ID = "com.app.types.value"
 private enum class Tier { FREE, PRO }
 
 /** One input of every supported shape, edited through the page. */
+/** Every text field on the page except the search bar, which is one too. */
+private val valueEditor = hasSetTextAction() and !hasTestTag(SEARCH_FIELD_TAG)
+
 class DebugInputTypesTest {
 
     @BeforeTest
@@ -202,12 +206,12 @@ class DebugInputTypesTest {
     fun aSetRefusesADuplicateElement() = runComposeUiTest {
         setContent { DebugInputsPage(listOf(input(spec = "set<int>", default = setOf(1, 2)))) }
 
-        onAllNodes(hasSetTextAction())[1].performTextReplacement("1")
+        onAllNodes(valueEditor)[1].performTextReplacement("1")
 
         onNodeWithText("already in the set").assertExists()
         assertNull(DebugInputRegistry.overrideOf(ID, "set<int>"))
 
-        onAllNodes(hasSetTextAction())[1].performTextReplacement("3")
+        onAllNodes(valueEditor)[1].performTextReplacement("3")
 
         assertEquals(setOf(1, 3), DebugInputRegistry.overrideOf(ID, "set<int>"))
     }
@@ -225,7 +229,7 @@ class DebugInputTypesTest {
     fun anIntArrayIsWrittenAsANewInstance() = runComposeUiTest {
         setContent { DebugInputsPage(listOf(input(spec = "iarr", default = intArrayOf(1, 2)))) }
 
-        onAllNodes(hasSetTextAction())[0].performTextReplacement("5")
+        onAllNodes(valueEditor)[0].performTextReplacement("5")
 
         val stored = DebugInputRegistry.overrideOf(ID, "iarr")
         assertTrue(stored is IntArray)
@@ -238,10 +242,10 @@ class DebugInputTypesTest {
         // Arrays compare by identity, so the indicator has to compare contents.
         setContent { DebugInputsPage(listOf(input(spec = "iarr", default = intArrayOf(1, 2)))) }
 
-        onAllNodes(hasSetTextAction())[0].performTextReplacement("5")
+        onAllNodes(valueEditor)[0].performTextReplacement("5")
         onNodeWithText("changed").assertExists()
 
-        onAllNodes(hasSetTextAction())[0].performTextReplacement("1")
+        onAllNodes(valueEditor)[0].performTextReplacement("1")
 
         onNodeWithText("changed").assertDoesNotExist()
         assertNotNull(DebugInputRegistry.overrideOf(ID, "iarr"))
@@ -318,26 +322,26 @@ class DebugInputTypesTest {
     @Test
     fun resetRestoresAContainerDefault() = runComposeUiTest {
         setContent { DebugInputsPage(listOf(input(spec = "lst<int>", default = listOf(1, 2)))) }
-        onAllNodes(hasSetTextAction())[0].performTextReplacement("9")
+        onAllNodes(valueEditor)[0].performTextReplacement("9")
 
         onNodeWithText("Reset").performClick()
 
         assertNull(DebugInputRegistry.overrideOf(ID, "lst<int>"))
         // The buffers followed the registry back to the default rather than keeping the 9.
-        onAllNodes(hasSetTextAction())[0].assertTextContains("1")
+        onAllNodes(valueEditor)[0].assertTextContains("1")
         onNodeWithText("changed").assertDoesNotExist()
     }
 
     @Test
     fun resetAllRestoresAContainerDefault() = runComposeUiTest {
         setContent { DebugInputsPage(listOf(input(spec = "lst<int>", default = listOf(1, 2)))) }
-        onAllNodes(hasSetTextAction())[0].performTextReplacement("9")
+        onAllNodes(valueEditor)[0].performTextReplacement("9")
         onNodeWithText("changed").assertExists()
 
         onNodeWithText("Reset all").performClick()
 
         assertNull(DebugInputRegistry.overrideOf(ID, "lst<int>"))
-        onAllNodes(hasSetTextAction())[0].assertTextContains("1")
+        onAllNodes(valueEditor)[0].assertTextContains("1")
         onNodeWithText("changed").assertDoesNotExist()
     }
 

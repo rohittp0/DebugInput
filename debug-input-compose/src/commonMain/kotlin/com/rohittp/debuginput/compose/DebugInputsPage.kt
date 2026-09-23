@@ -1,9 +1,11 @@
 package com.rohittp.debuginput.compose
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilledTonalButton
@@ -27,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
@@ -58,6 +63,10 @@ import com.rohittp.debuginput.parseTypeSpec
  * (see `docs/adr/0005-id-derivation-and-dormant-overrides.md`).
  * **Copy JSON** writes the effective changed values, their current defaults and source context to
  * the clipboard for a tester-to-developer handoff (ADR-0011).
+ *
+ * A search bar tops every page and matches an input's display name or id. On the root it reaches
+ * into section pages too: a match that lives on a section page is listed as a result that opens
+ * that page, scrolled to and highlighting the input. On a section page it filters that page only.
  *
  * An input whose spec the page cannot parse, or whose value is not the shape its spec
  * claims, gets a disabled row saying no renderer is registered for its type. That is the
@@ -83,6 +92,10 @@ public fun DebugInputsPage(
     // reads the same, so collapse it away.
     val showModules = modules.size > 1
     var selectedSectionKey by remember { mutableStateOf<SectionKey?>(null) }
+    // The input a root search result pointed at, so the section page can scroll to it.
+    var focusedInputId by remember { mutableStateOf<String?>(null) }
+    // Kept across a visit to a section page, so Back returns to the same results.
+    var rootQuery by remember { mutableStateOf("") }
     val selectedSection = selectedSectionKey?.let { key ->
         modules.asSequence().flatMap { it.sections.asSequence() }.firstOrNull { it.key == key }
     }
@@ -104,7 +117,12 @@ public fun DebugInputsPage(
                 changes = changes,
                 copied = copied,
                 onCopy = copyChanges,
-                onSection = { selectedSectionKey = it.key },
+                query = rootQuery,
+                onQuery = { rootQuery = it },
+                onSection = { section, inputId ->
+                    focusedInputId = inputId
+                    selectedSectionKey = section.key
+                },
             )
         } else {
             SectionPage(
@@ -113,7 +131,11 @@ public fun DebugInputsPage(
                 changes = changes,
                 copied = copied,
                 onCopy = copyChanges,
-                onBack = { selectedSectionKey = null },
+                focusedInputId = focusedInputId,
+                onBack = {
+                    focusedInputId = null
+                    selectedSectionKey = null
+                },
             )
         }
     }
@@ -166,6 +188,17 @@ private fun groupDescriptors(descriptors: List<DebugInputDescriptor>): List<Modu
             )
         }
 
+/**
+ * Whether [descriptor]'s key matches a search [query]: a case-insensitive substring of its display
+ * name or its id. Blank matches everything, so an empty search bar hides nothing.
+ */
+internal fun matchesQuery(descriptor: DebugInputDescriptor, query: String): Boolean {
+    val needle = query.trim()
+    if (needle.isEmpty()) return true
+    return descriptor.displayName.contains(needle, ignoreCase = true) ||
+        descriptor.id.contains(needle, ignoreCase = true)
+}
+
 @Composable
 private fun InputsRoot(
     modules: List<ModuleGroup>,
@@ -173,11 +206,17 @@ private fun InputsRoot(
     changes: List<ChangedInput>,
     copied: Boolean,
     onCopy: () -> Unit,
-    onSection: (SectionGroup) -> Unit,
+    query: String,
+    onQuery: (String) -> Unit,
+    onSection: (section: SectionGroup, inputId: String?) -> Unit,
 ) {
     val changedIds = changes.mapTo(mutableSetOf()) { it.descriptor.id }
     Column(modifier = Modifier.fillMaxSize()) {
-        PageHeader(changes.size, copied, onCopy)
+        PageHeader(changes.size, copied, onCopy, query, onQuery)
+        if (query.isNotBlank()) {
+            SearchResults(modules, showModules, query, onSection)
+            return@Column
+        }
         LazyColumn(
             modifier = Modifier.fillMaxWidth().weight(1f),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
@@ -193,7 +232,7 @@ private fun InputsRoot(
                             SectionLink(
                                 section = section,
                                 changedCount = section.inputs.count { it.id in changedIds },
-                                onClick = { onSection(section) },
+                                onClick = { onSection(section, null) },
                             )
                         }
                     } else {
@@ -210,6 +249,58 @@ private fun InputsRoot(
     }
 }
 
+/**
+ * The root page while a search is active. Inputs that live on the root itself stay editable in
+ * place; inputs on a section page are listed as results that open that page at the input.
+ */
+@Composable
+private fun ColumnScope.SearchResults(
+    modules: List<ModuleGroup>,
+    showModules: Boolean,
+    query: String,
+    onSection: (section: SectionGroup, inputId: String?) -> Unit,
+) {
+    val matches = modules.mapNotNull { module ->
+        val sections = module.sections.mapNotNull { section ->
+            val inputs = section.inputs.filter { matchesQuery(it, query) }
+            if (inputs.isEmpty()) null else section to inputs
+        }
+        if (sections.isEmpty()) null else module to sections
+    }
+    LazyColumn(
+        modifier = Modifier.fillMaxWidth().weight(1f),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        if (matches.isEmpty()) {
+            item(key = "no results") { NoResults(query) }
+        }
+        for ((module, sections) in matches) {
+            if (showModules) {
+                item(key = "module ${module.module}") { ModuleHeader(module.module) }
+            }
+            for ((section, inputs) in sections) {
+                if (section.hasPage) {
+                    items(inputs, key = { "result ${it.id}" }) { descriptor ->
+                        SearchResult(
+                            descriptor = descriptor,
+                            section = section,
+                            onClick = { onSection(section, descriptor.id) },
+                        )
+                    }
+                } else {
+                    item(key = "section ${module.module} ${section.section}") {
+                        SectionHeader(section.section)
+                    }
+                    items(inputs, key = { it.id }) { descriptor ->
+                        InputRow(descriptor)
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun SectionPage(
     section: SectionGroup,
@@ -217,8 +308,20 @@ private fun SectionPage(
     changes: List<ChangedInput>,
     copied: Boolean,
     onCopy: () -> Unit,
+    focusedInputId: String?,
     onBack: () -> Unit,
 ) {
+    var query by remember(section.key) { mutableStateOf("") }
+    val inputs = section.inputs.filter { matchesQuery(it, query) }
+    val listState = rememberLazyListState()
+    // Arriving from a root search result: bring that input into view. The items ahead of the
+    // inputs are the optional module header and description, mirrored from the list below.
+    LaunchedEffect(section.key, focusedInputId) {
+        val index = section.inputs.indexOfFirst { it.id == focusedInputId }
+        if (index < 0) return@LaunchedEffect
+        val leading = (if (showModule) 1 else 0) + (if (section.description.isNotEmpty()) 1 else 0)
+        listState.scrollToItem(leading + index)
+    }
     Column(modifier = Modifier.fillMaxSize()) {
         SectionPageHeader(
             section = section,
@@ -226,8 +329,11 @@ private fun SectionPage(
             copied = copied,
             onCopy = onCopy,
             onBack = onBack,
+            query = query,
+            onQuery = { query = it },
         )
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxWidth().weight(1f),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -250,15 +356,24 @@ private fun SectionPage(
                     }
                 }
             }
-            items(section.inputs, key = { it.id }) { descriptor ->
-                InputRow(descriptor)
+            if (inputs.isEmpty()) {
+                item(key = "no results") { NoResults(query) }
+            }
+            items(inputs, key = { it.id }) { descriptor ->
+                InputRow(descriptor, highlighted = descriptor.id == focusedInputId)
             }
         }
     }
 }
 
 @Composable
-private fun PageHeader(changedCount: Int, copied: Boolean, onCopy: () -> Unit) {
+private fun PageHeader(
+    changedCount: Int,
+    copied: Boolean,
+    onCopy: () -> Unit,
+    query: String,
+    onQuery: (String) -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -274,7 +389,8 @@ private fun PageHeader(changedCount: Int, copied: Boolean, onCopy: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 2.dp, bottom = 12.dp),
         )
-        HeaderActions(changedCount, copied, onCopy)
+        SearchField(query = query, onQuery = onQuery, placeholder = "Search all inputs")
+        HeaderActions(changedCount, copied, onCopy, modifier = Modifier.padding(top = 8.dp))
     }
 }
 
@@ -285,6 +401,8 @@ private fun SectionPageHeader(
     copied: Boolean,
     onCopy: () -> Unit,
     onBack: () -> Unit,
+    query: String,
+    onQuery: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -309,6 +427,12 @@ private fun SectionPageHeader(
                 )
             }
         }
+        SearchField(
+            query = query,
+            onQuery = onQuery,
+            placeholder = "Search ${section.section}",
+            modifier = Modifier.padding(start = 12.dp, top = 8.dp),
+        )
         HeaderActions(
             changedCount = changedCount,
             copied = copied,
@@ -347,6 +471,90 @@ private fun HeaderActions(
             Text("Reset all")
         }
     }
+}
+
+/** The test tag on every page's search field. */
+internal const val SEARCH_FIELD_TAG: String = "debug inputs search"
+
+@Composable
+private fun SearchField(
+    query: String,
+    onQuery: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQuery,
+        modifier = modifier.fillMaxWidth().testTag(SEARCH_FIELD_TAG),
+        singleLine = true,
+        shape = RoundedCornerShape(16.dp),
+        placeholder = { Text(placeholder) },
+        trailingIcon = if (query.isEmpty()) {
+            null
+        } else {
+            {
+                TextButton(
+                    onClick = { onQuery("") },
+                    modifier = Modifier.semantics { contentDescription = "clear search" },
+                ) {
+                    Text("Clear")
+                }
+            }
+        },
+    )
+}
+
+@Composable
+private fun SearchResult(
+    descriptor: DebugInputDescriptor,
+    section: SectionGroup,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .semantics { contentDescription = "go to ${descriptor.displayName} in ${section.section}" },
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = 1.dp,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = descriptor.displayName,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = "in ${section.section} · ${descriptor.typeKey}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = "›",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun NoResults(query: String) {
+    Text(
+        text = "No inputs match \u201c${query.trim()}\u201d",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp, horizontal = 4.dp),
+    )
 }
 
 @Composable
@@ -410,7 +618,7 @@ private fun SectionLink(section: SectionGroup, changedCount: Int, onClick: () ->
 }
 
 @Composable
-private fun InputRow(descriptor: DebugInputDescriptor) {
+private fun InputRow(descriptor: DebugInputDescriptor, highlighted: Boolean = false) {
     // The compiler does not emit `spec` yet, so every descriptor still arrives with an
     // empty one and M1's only type is the right guess. Drop the fallback once it does.
     val specText = descriptor.spec.ifEmpty { TAG_INT }
@@ -438,6 +646,8 @@ private fun InputRow(descriptor: DebugInputDescriptor) {
         shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
         tonalElevation = 1.dp,
+        // Marks the input a root search result led to.
+        border = if (highlighted) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
             Row(

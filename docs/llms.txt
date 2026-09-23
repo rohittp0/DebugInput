@@ -7,7 +7,7 @@ Source: https://github.com/rohittp0/DebugInput
 Public Maven repository: https://maven.rohittp.com
 Plugin id: com.rohittp.debug-input
 Compose coordinate: com.rohittp:debug-input-compose
-Required Kotlin version: 2.3.21
+Required Kotlin version: 2.4.20
 
 ## Installation
 
@@ -16,7 +16,7 @@ Add https://maven.rohittp.com to both pluginManagement.repositories and dependen
 ## Core API
 
 - @DebugInput(docs = "", section = "") annotates a property or enum class.
-- DebugInputsPage() renders generated sections, editors, reset actions, KDoc, and Copy JSON.
+- DebugInputsPage() renders generated sections, editors, reset actions, KDoc, Copy JSON, and a search bar (root searches every section page and opens the matching page at the input; a section page searches only itself).
 - Explicit docs wins over declaration KDoc. The default section is the file, class, object, or enum name.
 - An annotated enum class creates one input for every supported constructor val on every constant.
 

@@ -19,12 +19,12 @@ enum class MagicNumbers : Enum<MagicNumbers> {
 
   ROUTE_LINE_WIDTHS = MagicNumbers(values = [2.0, 4.0, 6.0])
 
-  /* static */ fun values(): Array<MagicNumbers> /* Synthetic body for ENUM_VALUES */
+  companion fun values(): Array<MagicNumbers> /* Synthetic body for ENUM_VALUES */
 
-  /* static */ fun valueOf(value: String): MagicNumbers /* Synthetic body for ENUM_VALUEOF */
+  companion fun valueOf(value: String): MagicNumbers /* Synthetic body for ENUM_VALUEOF */
 
-  /* static */ val entries: EnumEntries<MagicNumbers>
-    get(): EnumEntries<MagicNumbers> /* Synthetic body for ENUM_ENTRIES */
+  companion val entries: EnumEntries<MagicNumbers>
+    companion get(): EnumEntries<MagicNumbers> /* Synthetic body for ENUM_ENTRIES */
 
 }
 
