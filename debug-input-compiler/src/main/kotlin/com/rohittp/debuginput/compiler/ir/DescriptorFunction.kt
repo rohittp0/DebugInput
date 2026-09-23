@@ -108,7 +108,7 @@ internal class DescriptorFunctionEmitter(
         for (function in functions) {
             function.body = DeclarationIrBuilder(pluginContext, function.symbol).irBlockBody {
                 val all = irTemporary(
-                    value = irCall(symbols.mutableListOf).apply {
+                    value = irCall(symbols.mutableListOf, symbols.mutableListOfDescriptorType).apply {
                         typeArguments[0] = symbols.descriptorType
                         arguments[0] = irVararg(symbols.descriptorType, emptyList())
                     },
@@ -151,7 +151,7 @@ internal class DescriptorFunctionEmitter(
 
         function.body = DeclarationIrBuilder(pluginContext, function.symbol).irBlockBody {
             +irReturn(
-                irCall(symbols.mutableListOf).apply {
+                irCall(symbols.mutableListOf, symbols.mutableListOfDescriptorType).apply {
                     typeArguments[0] = symbols.descriptorType
                     arguments[0] = irVararg(
                         symbols.descriptorType,
@@ -277,6 +277,7 @@ private val IrFile.mangledBaseName: String
 private class RuntimeSymbols(
     val descriptorType: IrType,
     val listOfDescriptorType: IrType,
+    val mutableListOfDescriptorType: IrType,
     val descriptorConstructor: IrConstructorSymbol,
     val mutableListOf: IrSimpleFunctionSymbol,
     val addAll: IrSimpleFunctionSymbol,
@@ -298,6 +299,8 @@ private class RuntimeSymbols(
             return RuntimeSymbols(
                 descriptorType = descriptorType,
                 listOfDescriptorType = pluginContext.irBuiltIns.listClass.typeWith(descriptorType),
+                mutableListOfDescriptorType =
+                    pluginContext.irBuiltIns.mutableListClass.typeWith(descriptorType),
                 descriptorConstructor = descriptorConstructor,
                 mutableListOf = mutableListOf,
                 addAll = addAll,

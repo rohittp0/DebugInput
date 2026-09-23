@@ -8,6 +8,9 @@ import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.junit.Test
 
+// Constructing a bare CompilerConfiguration is marked internal from Kotlin 2.4; the tests
+// need one to exercise option processing in isolation.
+@OptIn(CompilerConfiguration.Internals::class)
 class PluginOptionsTest {
 
     private val processor = DebugInputCommandLineProcessor()

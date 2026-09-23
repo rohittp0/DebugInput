@@ -141,7 +141,8 @@ internal fun compile(
         // every test here and failed on the first real module.
         useFirLT = lightTree
         verifyIr = "error"
-        verifyIrVisibility = true
+        // -Xverify-ir-visibility was folded into -Xenable-additional-ir-checkers in 2.4.
+        enableAdditionalIrCheckers = arrayOf("IrVisibilityChecker")
 
         if (sourceSetHierarchy.isNotEmpty()) {
             fragments = sourceSetHierarchy.toTypedArray()

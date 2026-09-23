@@ -8,8 +8,8 @@ DebugInput turns annotated Kotlin values and enum constants into persistent, typ
 val playbackSpeed: Double = 1.0
 ```
 
-The generated Compose page groups inputs into source-derived subpages, uses KDoc as help text, persists overrides across relaunches, and copies changed defaults as JSON for tester-to-developer handoff.
+The generated Compose page groups inputs into source-derived subpages, uses KDoc as help text, searches input names and ids across every page, persists overrides across relaunches, and copies changed defaults as JSON for tester-to-developer handoff.
 
 See the full installation guide, supported types, enum behavior, JSON schema, production guarantees, and troubleshooting at [rohittp.com/DebugInput](https://rohittp.com/DebugInput/).
 
-DebugInput currently requires Kotlin 2.3.21. Published artifacts are available from `https://maven.rohittp.com`.
+DebugInput currently requires Kotlin 2.4.20. Published artifacts are available from `https://maven.rohittp.com`.

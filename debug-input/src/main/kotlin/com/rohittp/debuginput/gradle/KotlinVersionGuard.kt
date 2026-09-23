@@ -1,7 +1,7 @@
 package com.rohittp.debuginput.gradle
 
 /** The single Kotlin minor this release of debug-input is built against. See ADR-0001. */
-internal const val SUPPORTED_KOTLIN_MINOR = "2.3"
+internal const val SUPPORTED_KOTLIN_MINOR = "2.4"
 
 /**
  * The message to fail the build with when [kotlinVersion] is not the Kotlin minor this
@@ -24,7 +24,7 @@ internal fun kotlinVersionMismatchMessage(pluginVersion: String, kotlinVersion: 
 }
 
 /**
- * `2.3.21` and `2.3.20-Beta2` both yield `2.3`. Anything this cannot read yields null and
+ * `2.4.20` and `2.4.20-Beta2` both yield `2.4`. Anything this cannot read yields null and
  * is reported as a mismatch: an unrecognisable version is exactly the case where
  * guessing costs a `NoSuchMethodError`.
  */

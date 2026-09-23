@@ -1,5 +1,5 @@
 plugins {
-    id("org.jetbrains.kotlin.multiplatform") version "2.3.21"
+    id("org.jetbrains.kotlin.multiplatform") version "2.4.20"
     id("com.rohittp.debug-input")
 }
 

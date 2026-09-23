@@ -50,7 +50,7 @@ internal class EnumIdTable(
     /** `$debugInputIds$Enum$prop[receiver.ordinal]` */
     fun idOf(builder: IrBuilderWithScope, receiver: IrExpression): IrExpression =
         with(builder) {
-            irCall(arrayGet).apply {
+            irCall(arrayGet, context.irBuiltIns.stringType).apply {
                 arguments[0] = irCall(tableGetter)
                 arguments[1] = irCall(ordinalGetter).apply { arguments[0] = receiver }
             }
@@ -109,7 +109,7 @@ internal fun emitEnumIdTable(
     field.initializer = pluginContext.irFactory.createExpressionBody(
         UNDEFINED_OFFSET,
         UNDEFINED_OFFSET,
-        builder.irCall(arrayOf).apply {
+        builder.irCall(arrayOf, stringArrayType).apply {
             typeArguments[0] = pluginContext.irBuiltIns.stringType
             arguments[0] = builder.irVararg(
                 pluginContext.irBuiltIns.stringType,

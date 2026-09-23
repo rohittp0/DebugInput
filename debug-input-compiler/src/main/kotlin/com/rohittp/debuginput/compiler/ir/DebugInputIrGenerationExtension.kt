@@ -174,7 +174,10 @@ internal class DebugInputIrGenerationExtension(
                 val values = enumClass.functions
                     .singleOrNull { it.name.asString() == "values" && it.parameters.isEmpty() }
                     ?: return null
-                irCall(resolver).apply {
+                // Typed explicitly: resolveEnum returns its own T, and a call left with the
+                // declaration's return type references T out of scope, which 2.4's IR
+                // validator rejects.
+                irCall(resolver, getter.returnType).apply {
                     typeArguments[0] = getter.returnType
                     arguments[0] = irGetObjectValue(registry.owner.defaultType, registry)
                     arguments[1] = id

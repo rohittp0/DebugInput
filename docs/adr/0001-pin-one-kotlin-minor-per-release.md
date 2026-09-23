@@ -2,8 +2,8 @@
 
 `debug-input-compiler` links `kotlin-compiler-embeddable`, which is not a stable
 API, so the compiler plugin is only safe against the Kotlin minor it was compiled
-against. We pin each debug-input release to a single Kotlin minor (1.0.0 → Kotlin
-2.3.x), document it, and have the Gradle plugin fail the build with a
+against. We pin each debug-input release to a single Kotlin minor (0.1.x → Kotlin
+2.3.x, 0.2.x → Kotlin 2.4.x), document it, and have the Gradle plugin fail the build with a
 plain-English message when the consumer's Kotlin version does not match.
 
 The version is read with `getKotlinPluginVersion()`, not `KotlinCompilerVersion.VERSION`

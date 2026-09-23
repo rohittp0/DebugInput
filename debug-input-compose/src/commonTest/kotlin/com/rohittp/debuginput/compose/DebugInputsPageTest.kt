@@ -6,10 +6,13 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onChildren
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.runComposeUiTest
 import com.rohittp.debuginput.DebugInputDescriptor
@@ -18,7 +21,9 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 private const val SPEED_ID = "com.app.physics.speed"
 
@@ -315,6 +320,117 @@ class DebugInputsPageTest {
         onNodeWithText(":app").assertExists()
         onNodeWithText("Physics").assertExists()
         onNodeWithText("Limits").assertExists()
+    }
+
+    @Test
+    fun searchMatchesDisplayNameOrIdIgnoringCase() {
+        val speed = intInput()
+        assertTrue(matchesQuery(speed, ""))
+        assertTrue(matchesQuery(speed, "  "))
+        assertTrue(matchesQuery(speed, "SPE"))
+        assertTrue(matchesQuery(speed, "app.physics"))
+        assertTrue(matchesQuery(speed, " speed "))
+        assertFalse(matchesQuery(speed, "gravity"))
+    }
+
+    @Test
+    fun rootSearchFiltersInlineRowsInPlace() = runComposeUiTest {
+        val gravity = intInput(id = "com.app.physics.gravity", displayName = "gravity", default = 9)
+        setContent { DebugInputsPage(listOf(intInput(), gravity)) }
+
+        onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("grav")
+
+        onNodeWithText("gravity").assertExists()
+        onNodeWithText("speed").assertDoesNotExist()
+        // Still an editor, not a link.
+        onNodeWithText("9").performTextReplacement("7")
+        assertEquals(7, DebugInputRegistry.overrideOf("com.app.physics.gravity"))
+    }
+
+    @Test
+    fun rootSearchSurfacesInputsFromSectionPages() = runComposeUiTest {
+        val model = intInput(
+            id = "com.app.ai.model",
+            displayName = "model",
+            section = "Assistant",
+            sectionPageId = "custom:Assistant",
+        )
+        setContent { DebugInputsPage(listOf(intInput(), model)) }
+        onNodeWithText("model").assertDoesNotExist()
+
+        onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("mod")
+
+        onNodeWithContentDescription("go to model in Assistant").assertExists()
+        onNodeWithContentDescription("open Assistant").assertDoesNotExist()
+        onNodeWithText("speed").assertDoesNotExist()
+    }
+
+    @Test
+    fun aSearchResultOpensItsPageAtTheInput() = runComposeUiTest {
+        val inputs = (0 until 40).map { index ->
+            intInput(
+                id = "com.app.magic.value$index",
+                displayName = "value${index.toString().padStart(2, '0')}",
+                section = "MagicNumbers",
+                sectionPageId = "class:com.app.magic.MagicNumbers",
+                default = 1000 + index,
+            )
+        }
+        setContent { DebugInputsPage(inputs) }
+
+        onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("value37")
+        onNodeWithContentDescription("go to value37 in MagicNumbers").performClick()
+
+        // The page opened, scrolled far enough that the last rows are on screen.
+        onNodeWithText("40 inputs").assertExists()
+        onNodeWithText("value37").assertIsDisplayed()
+        onNodeWithText("1037").assertIsDisplayed()
+        onNodeWithText("value00").assertDoesNotExist()
+
+        // Back returns to the same results.
+        onNodeWithContentDescription("back to debug inputs").performClick()
+        onNodeWithContentDescription("go to value37 in MagicNumbers").assertExists()
+    }
+
+    @Test
+    fun sectionPageSearchIsRestrictedToThatPage() = runComposeUiTest {
+        val model = intInput(
+            id = "com.app.ai.model",
+            displayName = "model",
+            section = "Assistant",
+            sectionPageId = "custom:Assistant",
+        )
+        val limit = intInput(
+            id = "com.app.ai.tokenLimit",
+            displayName = "tokenLimit",
+            section = "Assistant",
+            sectionPageId = "custom:Assistant",
+        )
+        setContent { DebugInputsPage(listOf(model, limit, intInput())) }
+        onNodeWithContentDescription("open Assistant").performClick()
+
+        onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("token")
+        onNodeWithText("tokenLimit").assertExists()
+        onNodeWithText("model").assertDoesNotExist()
+
+        // Another page's input is out of reach from here.
+        onNodeWithTag(SEARCH_FIELD_TAG).performTextReplacement("spe")
+        onNodeWithText("No inputs match \u201cspe\u201d").assertExists()
+        onNodeWithText("speed").assertDoesNotExist()
+
+        onNodeWithContentDescription("clear search").performClick()
+        onNodeWithText("model").assertExists()
+        onNodeWithText("tokenLimit").assertExists()
+    }
+
+    @Test
+    fun aSearchWithNoMatchesSaysSo() = runComposeUiTest {
+        setContent { DebugInputsPage(listOf(intInput())) }
+
+        onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("nothing")
+
+        onNodeWithText("No inputs match \u201cnothing\u201d").assertExists()
+        onNodeWithText("speed").assertDoesNotExist()
     }
 }
 
